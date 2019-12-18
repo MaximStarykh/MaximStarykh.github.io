@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>InDev</title>
+
+    <link rel="stylesheet" href="css/style1.css">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700&display=swap&subset=cyrillic-ext"
+        rel="stylesheet">
+    <link rel="shortcut icon" href="img/logo1.png" type="image/png">
+
+
+</head>
+
+<body>
+
+
+    </br></br></br>
+    <header class="section">
+        <div class="center">
+            <div class="logo">
+                <a href="index.html"> <img src="img/logo1.png" alt="logo" width="60%" height="60%" /></a>
+            </div>
+            <nav>
+                <ul class="menu">
+                    <li><a class="butt" href="features.html">Особливості</a></li>
+                    <li><a class="butt" href="privacy.html">Конфіденційність та Безпека</a></li>
+                    <li><a class="butt_bold" href="dev.html">Для Розробників</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    </br></br></br>
+
+
+    <script>
+
+
+        var min = null;
+        var max = null;
+        var a = null;
+        var b = null;
+        var answr = null;
+        var repeat = null;
+
+        function NumberGeneration(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+
+        while (repeat != 0) {
+            a = NumberGeneration(0, 9);
+            b = NumberGeneration(0, 9);
+            alert('Скільки буде' + a + ' помножити на ' + b + '?')
+            var answr = parseInt(prompt('Введіть відповідь: ', ''));
+            var summ = a * b;
+            do {
+                if (answr == summ) {
+                    alert("Молодець! Дуже добре!");
+                }
+                else {
+                    alert("Невірно! Спробуйте знову.");
+                    var answr = parseInt(prompt('Введіть відповідь:', ''));
+                }
+            } while (answr != summ);
+            var repeat = parseInt(prompt('Бажаєте ще раз зіграти? Якщо так, то введіть 1, якщо ні то 0', '0'));
+        }
+
+    </script>
+
+</body>
+
+
+</html>

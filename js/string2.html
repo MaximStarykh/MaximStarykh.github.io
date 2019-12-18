@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Lab 3 2.2</title>
+    <link rel='stylesheet' href='css/style1.css' type='text/css' />
+    <link rel="shortcut icon" href="img/logo1.png" type="image/png">
+</head>
+
+<body>
+
+
+    </br></br></br>
+    <header class="section">
+        <div class="center">
+            <div class="logo">
+                <a href="index.html"> <img src="img/logo1.png" alt="logo" width="60%" height="60%" /></a>
+            </div>
+            <nav>
+                <ul class="menu">
+                    <li><a class="butt" href="features.html">Особливості</a></li>
+                    <li><a class="butt" href="privacy.html">Конфіденційність та Безпека</a></li>
+                    <li><a class="butt_bold" href="dev.html">Для Розробників</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    </br></br></br>
+
+
+    <p>1.Раскодируйте значение строки и выведите ее на страницу: </p>
+    <hr />
+    <p>(1052)(1086)(1089)(1082)(1074)(1072)</p>
+    <hr />
+    <p>2.После того как строка будет раскодирована закодируйте ее обратно и
+        сравните свой результат с данными задачи. </p>
+    <p><b>Подсказка:</b> используйте методы <b>fromCharCode()</b> и
+        <b>charCodeAt()</b>.</p>
+    <script type='text/javascript'>
+        document.write(String.fromCharCode(1052, 1086, 1089, 1082, 1074, 1072) + "</br>");
+        var str = "Москва";
+        for (i = 0; i < 5; i++) {
+            let n = str.charCodeAt(i);
+            document.write(n + " ")
+        }
+
+
+    </script>
+</body>
+
+</html>
+
+</body>
+
+</html>
