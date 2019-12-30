@@ -39,13 +39,6 @@ body {
     padding: 15px 5px;
 }
 
-ul.hr {
-    margin: 0;
-    /* Обнуляем значение отступов */
-    padding: 4px;
-    /* Значение полей */
-}
-
 ul.hr li {
     display: inline;
     /* Отображать как строчный элемент */
@@ -53,6 +46,13 @@ ul.hr li {
     /* Отступ слева */
     padding: 3px;
     /* Поля вокруг текста */
+}
+
+ul.hr {
+    margin: 0;
+    /* Обнуляем значение отступов */
+    padding: 4px;
+    /* Значение полей */
 }
 
 .main {
@@ -65,16 +65,16 @@ ul.hr li {
     margin-left: 5%;
 }
 
-.feature_left {
-    margin-right: 15%;
-    margin-top: 5%;
-    margin-left: 15%;
-}
-
 .feature_right {
     margin-right: 20%;
     margin-top: 9%;
     margin-left: 22%;
+}
+
+.feature_left {
+    margin-right: 15%;
+    margin-top: 5%;
+    margin-left: 15%;
 }
 
 .light {
@@ -150,7 +150,7 @@ a.download {
     font-family: 'Montserrat', sans-serif;
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    background-image: linear-gradient(to right, #d82986 0%,  #02b5f1 51%, #d82986 100%);
+    background-image: linear-gradient(to right, #d82986 0%, #02b5f1 51%, #d82986 100%);
     background-size: 200% auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, .1);
     transition: 1s;
@@ -176,7 +176,9 @@ form ul li label {
     font-size: 14px;
 }
 
-form ul li input, select, span {
+form ul li input,
+select,
+span {
     font-family: 'Montserrat', sans-serif;
     float: left;
     margin-bottom: 10px;
