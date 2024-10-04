@@ -9,30 +9,61 @@
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes roll {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dice-roll {
+            animation: roll 0.5s ease-out;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        // Підключення Telegram Mini App API
         const tg = window.Telegram.WebApp;
 
         function DiceProphet() {
             const [dice1, setDice1] = React.useState(1);
             const [dice2, setDice2] = React.useState(1);
             const [score, setScore] = React.useState(0);
+            const [highScore, setHighScore] = React.useState(0);
             const [multiplier, setMultiplier] = React.useState(1);
+            const [streak, setStreak] = React.useState(0);
             const [timeLeft, setTimeLeft] = React.useState(60);
             const [bonuses, setBonuses] = React.useState([]);
-            const [gameState, setGameState] = React.useState('playing');
+            const [gameState, setGameState] = React.useState('ready');
             const [prediction, setPrediction] = React.useState(null);
             const [safeZoneActive, setSafeZoneActive] = React.useState(false);
             const [safeZoneCounter, setSafeZoneCounter] = React.useState(0);
+            const [isRolling, setIsRolling] = React.useState(false);
 
             React.useEffect(() => {
-                // Ініціалізація Telegram Mini App
                 tg.ready();
-                // Встановлення теми додатку відповідно до теми Telegram
+                tg.expand();
                 document.body.className = tg.colorScheme;
+                
+                // Load high score
+                tg.CloudStorage.getItem("highScore", (error, value) => {
+                    if (!error && value) {
+                        setHighScore(parseInt(value));
+                    }
+                });
+
+                // Set up main button
+                tg.MainButton.setText("Start Game");
+                tg.MainButton.onClick(() => {
+                    if (gameState === 'ready') {
+                        setGameState('playing');
+                        tg.MainButton.hide();
+                    }
+                });
+                tg.MainButton.show();
+
+                return () => {
+                    tg.MainButton.offClick();
+                };
             }, []);
 
             React.useEffect(() => {
@@ -53,8 +84,12 @@
             }, [gameState]);
 
             const rollDice = () => {
-                setDice1(Math.floor(Math.random() * 6) + 1);
-                setDice2(Math.floor(Math.random() * 6) + 1);
+                setIsRolling(true);
+                setTimeout(() => {
+                    setDice1(Math.floor(Math.random() * 6) + 1);
+                    setDice2(Math.floor(Math.random() * 6) + 1);
+                    setIsRolling(false);
+                }, 500);
             };
 
             const handlePrediction = (pred) => {
@@ -63,20 +98,23 @@
             };
 
             React.useEffect(() => {
-                if (prediction !== null) {
+                if (prediction !== null && !isRolling) {
                     const sum = dice1 + dice2;
                     
                     if ((prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7)) {
                         setScore((prevScore) => prevScore + 10 * multiplier);
-                        setMultiplier((prevMultiplier) => prevMultiplier + 1);
+                        setMultiplier((prevMultiplier) => prevMultiplier + 0.1);
+                        setStreak((prevStreak) => prevStreak + 1);
                     } else if (sum === 7) {
                         if (!safeZoneActive) {
                             setScore(0);
                             setMultiplier(1);
+                            setStreak(0);
                         }
                     } else {
                         if (!safeZoneActive) {
                             setMultiplier(1);
+                            setStreak(0);
                         }
                     }
 
@@ -96,7 +134,7 @@
 
                     setPrediction(null);
                 }
-            }, [dice1, dice2, prediction, multiplier, safeZoneActive]);
+            }, [dice1, dice2, prediction, multiplier, safeZoneActive, isRolling]);
 
             const handleUseBonus = (bonus) => {
                 if (bonus === 'Safe Zone') {
@@ -115,7 +153,7 @@
             };
 
             React.useEffect(() => {
-                if (gameState === 'allInResult' && prediction !== null) {
+                if (gameState === 'allInResult' && !isRolling) {
                     const sum = dice1 + dice2;
                     if ((prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7)) {
                         setScore((prevScore) => prevScore * 2);
@@ -124,47 +162,71 @@
                     }
                     setGameState('gameOver');
                 }
-            }, [dice1, dice2, prediction, gameState]);
+            }, [dice1, dice2, prediction, gameState, isRolling]);
+
+            React.useEffect(() => {
+                if (gameState === 'gameOver') {
+                    if (score > highScore) {
+                        setHighScore(score);
+                        tg.CloudStorage.setItem("highScore", score.toString());
+                    }
+                    tg.MainButton.setText("Play Again");
+                    tg.MainButton.show();
+                    tg.MainButton.onClick(restartGame);
+                }
+            }, [gameState, score, highScore]);
 
             const restartGame = () => {
                 setDice1(1);
                 setDice2(1);
                 setScore(0);
                 setMultiplier(1);
+                setStreak(0);
                 setTimeLeft(60);
                 setBonuses([]);
                 setGameState('playing');
                 setPrediction(null);
                 setSafeZoneActive(false);
                 setSafeZoneCounter(0);
+                tg.MainButton.hide();
             };
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
                     <h1 className="text-3xl font-bold mb-4">Dice Prophet</h1>
                     
+                    {gameState === 'ready' && (
+                        <div className="text-center">
+                            <p className="mb-4">Передбачай результати кидка кубиків і заробляй очки!</p>
+                            <p>Натисни "Start Game", щоб почати.</p>
+                        </div>
+                    )}
+
                     {gameState === 'playing' && (
-                        <div>
+                        <div className="text-center">
                             <div className="text-2xl font-bold mb-2">{timeLeft}s</div>
-                            <div className="text-xl mb-4">Score: {score} (×{multiplier})</div>
+                            <div className="text-xl mb-4">Score: {Math.floor(score)} (×{multiplier.toFixed(1)})</div>
+                            <div className="text-lg mb-2">Streak: {streak}</div>
                             <div className="flex space-x-4 mb-4">
-                                <div className="w-16 h-16 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-3xl font-bold">
+                                <div className={`w-16 h-16 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-3xl font-bold ${isRolling ? 'dice-roll' : ''}`}>
                                     {dice1}
                                 </div>
-                                <div className="w-16 h-16 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-3xl font-bold">
+                                <div className={`w-16 h-16 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-3xl font-bold ${isRolling ? 'dice-roll' : ''}`}>
                                     {dice2}
                                 </div>
                             </div>
                             <div className="flex space-x-4 mb-4">
                                 <button
-                                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                                     onClick={() => handlePrediction('less')}
+                                    disabled={isRolling}
                                 >
                                     Less than 7
                                 </button>
                                 <button
-                                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                                     onClick={() => handlePrediction('more')}
+                                    disabled={isRolling}
                                 >
                                     More than 7
                                 </button>
@@ -187,8 +249,8 @@
                     )}
 
                     {gameState === 'finished' && (
-                        <div>
-                            <div className="text-2xl font-bold mb-4">Time's up! Final Score: {score}</div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold mb-4">Time's up! Final Score: {Math.floor(score)}</div>
                             <div className="text-xl mb-4">Do you want to go All-In?</div>
                             <div className="flex space-x-4 mb-4">
                                 <button
@@ -212,15 +274,10 @@
                     )}
 
                     {gameState === 'gameOver' && (
-                        <div>
+                        <div className="text-center">
                             <div className="text-3xl font-bold mb-4">Game Over!</div>
-                            <div className="text-2xl mb-4">Final Score: {score}</div>
-                            <button
-                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                onClick={restartGame}
-                            >
-                                Play Again
-                            </button>
+                            <div className="text-2xl mb-4">Final Score: {Math.floor(score)}</div>
+                            <div className="text-xl mb-4">High Score: {Math.floor(highScore)}</div>
                         </div>
                     )}
                 </div>
