@@ -144,7 +144,7 @@
                     <h1 className="text-3xl font-bold mb-4">Dice Prophet</h1>
                     
                     {gameState === 'playing' && (
-                        <>
+                        <div>
                             <div className="text-2xl font-bold mb-2">{timeLeft}s</div>
                             <div className="text-xl mb-4">Score: {score} (×{multiplier})</div>
                             <div className="flex space-x-4 mb-4">
@@ -183,11 +183,11 @@
                             {safeZoneActive && (
                                 <div className="text-green-500 mb-2">Safe Zone Active: {3 - safeZoneCounter} rolls left</div>
                             )}
-                        </>
+                        </div>
                     )}
 
                     {gameState === 'finished' && (
-                        <>
+                        <div>
                             <div className="text-2xl font-bold mb-4">Time's up! Final Score: {score}</div>
                             <div className="text-xl mb-4">Do you want to go All-In?</div>
                             <div className="flex space-x-4 mb-4">
@@ -204,7 +204,7 @@
                                     All-In: More than 7
                                 </button>
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {gameState === 'allInResult' && (
@@ -212,7 +212,7 @@
                     )}
 
                     {gameState === 'gameOver' && (
-                        <>
+                        <div>
                             <div className="text-3xl font-bold mb-4">Game Over!</div>
                             <div className="text-2xl mb-4">Final Score: {score}</div>
                             <button
@@ -221,7 +221,7 @@
                             >
                                 Play Again
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             );
