@@ -258,7 +258,7 @@
             );
 
             const BonusDisplay = ({ bonus }) => (
-                <div className="px-3 py-2 bg-green-500 text-white rounded-full flex items-center justify-center bonus-appear">
+                <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
                     <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
                     {bonus}
                 </div>
@@ -297,27 +297,27 @@
                                 <DiceDisplay value={dice2} rolling={isRolling} />
                             </div>
                             {lastRollResult && (
-                                <div className={`text-2xl mb-4 font-bold ${lastRollResult < 7 ? 'text-blue-500' : lastRollResult > 7 ? 'text-red-500' : 'text-yellow-500'} fade-in`}>
+                                <div className={`text-2xl mb-4 font-bold ${lastRollResult < 7 ? 'text-red-500' : lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
                                     Last Roll: {lastRollResult}
                                 </div>
                             )}
                             <div className="flex justify-center space-x-2 mb-4">
-{recentRolls.map((roll, index) => (
-                                    <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-blue-500' : roll > 7 ? 'bg-red-500' : 'bg-yellow-500'} text-white`}>
+                                {recentRolls.map((roll, index) => (
+                                    <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-red-500' : roll > 7 ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
                                         {roll}
                                     </div>
                                 ))}
                             </div>
                             <div className="flex justify-center space-x-4 mb-6">
                                 <button
-                                    className={`px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
+                                    className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('less')}
                                     disabled={isRolling}
                                 >
                                     <i className="fas fa-arrow-down mr-2"></i>Less than 7
                                 </button>
                                 <button
-                                    className={`px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
+                                    className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('more')}
                                     disabled={isRolling}
                                 >
@@ -328,7 +328,7 @@
                                 <div className="mb-4 scale-in">
                                     <BonusDisplay bonus={activeBonus} />
                                     {activeBonus === 'Safe Zone' && (
-                                        <div className="text-green-500 mt-2">
+                                        <div className="text-purple-500 mt-2">
                                             <i className="fas fa-shield-alt mr-2"></i>
                                             Safe Zone: {safeZoneRolls} rolls left
                                         </div>
@@ -350,7 +350,7 @@
                                     <i className="fas fa-dice mr-2"></i>All-In: Less than 7
                                 </button>
                                 <button
-                                    className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
+                                    className="px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
                                     onClick={() => handleAllIn('more')}
                                 >
                                     <i className="fas fa-dice mr-2"></i>All-In: More than 7
