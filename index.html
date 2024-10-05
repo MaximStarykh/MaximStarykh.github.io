@@ -35,6 +35,20 @@
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
         }
+        .scale-in {
+            animation: scaleIn 0.3s ease-in-out;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-in-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -50,14 +64,15 @@
             const [multiplier, setMultiplier] = React.useState(1);
             const [streak, setStreak] = React.useState(0);
             const [timeLeft, setTimeLeft] = React.useState(60);
-            const [bonuses, setBonuses] = React.useState([]);
+            const [activeBonus, setActiveBonus] = React.useState(null);
             const [gameState, setGameState] = React.useState('ready');
             const [prediction, setPrediction] = React.useState(null);
-            const [safeZoneActive, setSafeZoneActive] = React.useState(false);
             const [safeZoneRolls, setSafeZoneRolls] = React.useState(0);
             const [isRolling, setIsRolling] = React.useState(false);
             const [rollCount, setRollCount] = React.useState(0);
             const [lastRollResult, setLastRollResult] = React.useState(null);
+            const [recentRolls, setRecentRolls] = React.useState([]);
+            const [scoreChange, setScoreChange] = React.useState(0);
 
             React.useEffect(() => {
                 tg.ready();
@@ -111,7 +126,9 @@
                     setDice1(newDice1);
                     setDice2(newDice2);
                     setIsRolling(false);
-                    setLastRollResult(newDice1 + newDice2);
+                    const newResult = newDice1 + newDice2;
+                    setLastRollResult(newResult);
+                    setRecentRolls(prev => [newResult, ...prev.slice(0, 4)]);
                 }, 500);
             };
 
@@ -120,63 +137,67 @@
                 rollDice();
             };
 
+            const activateBonus = (bonus) => {
+                setActiveBonus(bonus);
+                if (bonus === 'Safe Zone') {
+                    setSafeZoneRolls(3);
+                } else if (bonus === 'Time Freeze') {
+                    setTimeLeft(prev => prev + 5);
+                }
+                tg.HapticFeedback.notificationOccurred('success');
+            };
+
             React.useEffect(() => {
                 if (prediction !== null && !isRolling) {
                     const sum = dice1 + dice2;
                     let isCorrect = false;
+                    let newScore = score;
                     
                     if ((prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7)) {
                         isCorrect = true;
-                        setScore((prevScore) => prevScore + 100 * multiplier);
-                        setMultiplier((prevMultiplier) => prevMultiplier + 1);
-                        setStreak((prevStreak) => prevStreak + 1);
+                        const pointsEarned = 100 * multiplier;
+                        newScore += pointsEarned;
+                        setScore(newScore);
+                        setScoreChange(pointsEarned);
+                        setMultiplier(prev => prev + 1);
+                        setStreak(prev => prev + 1);
                         tg.HapticFeedback.notificationOccurred('success');
                     } else if (sum === 7) {
-                        if (!safeZoneActive) {
+                        if (activeBonus !== 'Safe Zone') {
+                            newScore = 0;
                             setScore(0);
+                            setScoreChange(-score);
                             setMultiplier(1);
                             setStreak(0);
                             tg.HapticFeedback.notificationOccurred('error');
                         }
                     } else {
-                        if (!safeZoneActive) {
+                        if (activeBonus !== 'Safe Zone') {
                             setMultiplier(1);
                             setStreak(0);
+                            setScoreChange(0);
                             tg.HapticFeedback.notificationOccurred('warning');
                         }
                     }
 
-                    if (safeZoneActive) {
-                        setSafeZoneRolls((prev) => {
-                            if (prev >= 2) {
-                                setSafeZoneActive(false);
+                    if (activeBonus === 'Safe Zone') {
+                        setSafeZoneRolls(prev => {
+                            if (prev <= 1) {
+                                setActiveBonus(null);
                                 return 0;
                             }
-                            return prev + 1;
+                            return prev - 1;
                         });
                     }
 
-                    if (rollCount % 5 === 0 && Math.random() < 0.5 && bonuses.length < 2) {
+                    if (rollCount % 5 === 0 && !activeBonus) {
                         const newBonus = Math.random() < 0.5 ? 'Safe Zone' : 'Time Freeze';
-                        setBonuses((prevBonuses) => [...prevBonuses, newBonus]);
-                        tg.HapticFeedback.notificationOccurred('success');
+                        activateBonus(newBonus);
                     }
 
                     setPrediction(null);
                 }
-            }, [dice1, dice2, prediction, multiplier, safeZoneActive, isRolling, rollCount]);
-
-            const handleUseBonus = (bonus) => {
-                if (bonus === 'Safe Zone') {
-                    setSafeZoneActive(true);
-                    setSafeZoneRolls(0);
-                    tg.HapticFeedback.notificationOccurred('success');
-                } else if (bonus === 'Time Freeze') {
-                    setTimeLeft((prevTime) => prevTime + 5);
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-                setBonuses((prevBonuses) => prevBonuses.filter((b) => b !== bonus));
-            };
+            }, [dice1, dice2, prediction, multiplier, activeBonus, isRolling, rollCount, score]);
 
             const handleAllIn = (pred) => {
                 setPrediction(pred);
@@ -188,15 +209,17 @@
                 if (gameState === 'allInResult' && !isRolling) {
                     const sum = dice1 + dice2;
                     if ((prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7)) {
-                        setScore((prevScore) => prevScore * 2);
+                        setScore(prev => prev * 2);
+                        setScoreChange(score);
                         tg.HapticFeedback.notificationOccurred('success');
                     } else {
                         setScore(0);
+                        setScoreChange(-score);
                         tg.HapticFeedback.notificationOccurred('error');
                     }
                     setGameState('gameOver');
                 }
-            }, [dice1, dice2, prediction, gameState, isRolling]);
+            }, [dice1, dice2, prediction, gameState, isRolling, score]);
 
             React.useEffect(() => {
                 if (gameState === 'gameOver') {
@@ -217,13 +240,14 @@
                 setMultiplier(1);
                 setStreak(0);
                 setTimeLeft(60);
-                setBonuses([]);
+                setActiveBonus(null);
                 setGameState('playing');
                 setPrediction(null);
-                setSafeZoneActive(false);
                 setSafeZoneRolls(0);
                 setRollCount(0);
                 setLastRollResult(null);
+                setRecentRolls([]);
+                setScoreChange(0);
                 tg.MainButton.hide();
             };
 
@@ -233,14 +257,11 @@
                 </div>
             );
 
-            const BonusButton = ({ bonus, onClick }) => (
-                <button
-                    className="px-3 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 flex items-center justify-center bonus-appear"
-                    onClick={() => onClick(bonus)}
-                >
+            const BonusDisplay = ({ bonus }) => (
+                <div className="px-3 py-2 bg-green-500 text-white rounded-full flex items-center justify-center bonus-appear">
                     <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
                     {bonus}
-                </button>
+                </div>
             );
 
             return (
@@ -262,6 +283,11 @@
                             <div className="text-2xl mb-4">
                                 Score: <span className="text-green-500 font-bold">{Math.floor(score)}</span>
                                 <span className="text-sm ml-2">(×{multiplier})</span>
+                                {scoreChange !== 0 && (
+                                    <span className={`ml-2 ${scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
+                                        {scoreChange > 0 ? '+' : ''}{scoreChange}
+                                    </span>
+                                )}
                             </div>
                             <div className="text-lg mb-4">
                                 Streak: <span className="text-yellow-500 font-bold">{streak}</span>
@@ -275,6 +301,13 @@
                                     Last Roll: {lastRollResult}
                                 </div>
                             )}
+                            <div className="flex justify-center space-x-2 mb-4">
+{recentRolls.map((roll, index) => (
+                                    <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-blue-500' : roll > 7 ? 'bg-red-500' : 'bg-yellow-500'} text-white`}>
+                                        {roll}
+                                    </div>
+                                ))}
+                            </div>
                             <div className="flex justify-center space-x-4 mb-6">
                                 <button
                                     className={`px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
@@ -291,15 +324,15 @@
                                     <i className="fas fa-arrow-up mr-2"></i>More than 7
                                 </button>
                             </div>
-                            <div className="flex justify-center space-x-4 mb-4">
-                 {bonuses.map((bonus, index) => (
-                                    <BonusButton key={index} bonus={bonus} onClick={handleUseBonus} />
-                                ))}
-                            </div>
-                            {safeZoneActive && (
-                                <div className="text-green-500 mb-4 fade-in">
-                                    <i className="fas fa-shield-alt mr-2"></i>
-                                    Safe Zone Active: {3 - safeZoneRolls} rolls left
+                            {activeBonus && (
+                                <div className="mb-4 scale-in">
+                                    <BonusDisplay bonus={activeBonus} />
+                                    {activeBonus === 'Safe Zone' && (
+                                        <div className="text-green-500 mt-2">
+                                            <i className="fas fa-shield-alt mr-2"></i>
+                                            Safe Zone: {safeZoneRolls} rolls left
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
