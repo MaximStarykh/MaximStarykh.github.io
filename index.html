@@ -156,6 +156,30 @@
             }
         };
 
+        // DiceDisplay component
+        const DiceDisplay = React.memo(({ value, rolling }) => (
+            <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}>
+                {value}
+            </div>
+        ));
+
+        DiceDisplay.propTypes = {
+            value: PropTypes.number.isRequired,
+            rolling: PropTypes.bool.isRequired
+        };
+
+        // BonusDisplay component
+        const BonusDisplay = React.memo(({ bonus }) => (
+            <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
+                <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
+                {bonus}
+            </div>
+        ));
+
+        BonusDisplay.propTypes = {
+            bonus: PropTypes.string.isRequired
+        };
+
         function DiceProphet() {
             const [state, dispatch] = React.useReducer(gameReducer, {
                 dice1: 1,
@@ -264,27 +288,17 @@
                 }
             }, [state.gameState, state.score, state.highScore]);
 
-            const DiceDisplay = React.memo(({ value, rolling }) => (
-                <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}>
-                    {value}
+            const scoreDisplay = React.useMemo(() => (
+                <div className="text-2xl mb-4">
+                    Score: <span className="text-green-500 font-bold">{Math.floor(state.score)}</span>
+                    <span className="text-sm ml-2">(×{state.multiplier})</span>
+                    {state.scoreChange !== 0 && (
+                        <span className={`ml-2 ${state.scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
+                            {state.scoreChange > 0 ? '+' : ''}{state.scoreChange}
+                        </span>
+                    )}
                 </div>
-            ));
-
-            DiceDisplay.propTypes = {
-                value: PropTypes.number.isRequired,
-                rolling: PropTypes.bool.isRequired
-            };
-
-            const BonusDisplay = React.memo(({ bonus }) => (
-                <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
-                    <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
-                    {bonus}
-                </div>
-            ));
-
-            BonusDisplay.propTypes = {
-                bonus: PropTypes.string.isRequired
-            };
+            ), [state.score, state.multiplier, state.scoreChange]);
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
@@ -302,15 +316,7 @@
                             <div className="text-3xl font-bold mb-4">
                                 <i className="far fa-clock mr-2"></i>{state.timeLeft}s
                             </div>
-                            <div className="text-2xl mb-4">
-                               Score: <span className="text-green-500 font-bold">{Math.floor(state.score)}</span>
-                                <span className="text-sm ml-2">(×{state.multiplier})</span>
-                                {state.scoreChange !== 0 && (
-                                    <span className={`ml-2 ${state.scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
-                                        {state.scoreChange > 0 ? '+' : ''}{state.scoreChange}
-                                    </span>
-                                )}
-                            </div>
+                            {scoreDisplay}
                             <div className="text-lg mb-4">
                                 Streak: <span className="text-yellow-500 font-bold">{state.streak}</span>
                             </div>
