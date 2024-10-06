@@ -56,7 +56,6 @@
     <script type="text/babel">
         const tg = window.Telegram.WebApp;
 
-        // Custom hook for managing the timer
         const useGameTimer = (initialTime) => {
             const [timeLeft, setTimeLeft] = React.useState(initialTime);
             const [isFrozen, setIsFrozen] = React.useState(false);
@@ -94,11 +93,10 @@
             return { timeLeft, startTimer, stopTimer, addTime, freezeTimer };
         };
 
-        // Game reducer for state management
         const gameReducer = (state, action) => {
             switch (action.type) {
                 case 'START_GAME':
-                    return { ...state, gameState: 'playing' };
+                    return { ...initialState, gameState: 'playing', highScore: state.highScore };
                 case 'END_GAME':
                     return { ...state, gameState: 'finished' };
                 case 'GAME_OVER':
@@ -126,18 +124,11 @@
                         ...state,
                         activeBonus: action.bonus,
                         safeZoneRolls: action.bonus === 'Safe Zone' ? 3 : 0,
-                        safeZoneMultiplier: action.bonus === 'Safe Zone' ? state.multiplier : null
                     };
                 case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0, safeZoneMultiplier: null };
+                    return { ...state, activeBonus: null, safeZoneRolls: 0 };
                 case 'UPDATE_HIGH_SCORE':
                     return { ...state, highScore: action.highScore };
-                case 'RESTART_GAME':
-                    return {
-                        ...initialState,
-                        highScore: state.highScore,
-                        gameState: 'playing',
-                    };
                 case 'SET_ROLLING':
                     return { ...state, isRolling: action.isRolling };
                 default:
@@ -145,7 +136,6 @@
             }
         };
 
-        // Sound effects (placeholder function)
         const useSound = () => {
             const playDiceRoll = () => console.log("Dice roll sound");
             const playCorrect = () => console.log("Correct prediction sound");
@@ -155,7 +145,6 @@
             return { playDiceRoll, playCorrect, playIncorrect, playBonus };
         };
 
-        // Components
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`} aria-label={`Dice showing ${value}`}>
                 {value}
@@ -167,32 +156,29 @@
                 <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
                     <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
                     {bonus}
+                    {bonus === 'Safe Zone' && ` (${safeZoneRolls} rolls left)`}
                 </div>
-                {bonus === 'Safe Zone' && (
-                    <div className="text-purple-500 mt-2">
-                        <i className="fas fa-shield-alt mr-2"></i>
-                        Safe Zone: {safeZoneRolls} rolls left
-                    </div>
-                )}
             </div>
         ));
 
         const ScoreDisplay = React.memo(({ score, multiplier, streak, scoreChange, highScore }) => (
-            <div>
-                <div className="text-2xl mb-4">
+            <div className="text-center">
+                <div className="text-3xl mb-2">
                     Score: <span className="text-green-500 font-bold">{Math.floor(score)}</span>
-                    <span className="text-sm ml-2">(×{multiplier})</span>
                     {scoreChange !== 0 && (
                         <span className={`ml-2 ${scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
-                            {scoreChange > 0 ? '+' : ''}{scoreChange}
+                            {scoreChange > 0 ? '+' : ''}{Math.floor(scoreChange)}
                         </span>
                     )}
                 </div>
-                <div className="text-lg mb-2">
+                <div className="text-xl mb-2">
+                    Multiplier: <span className="text-blue-500 font-bold">×{multiplier}</span>
+                </div>
+                <div className="text-xl mb-2">
                     Streak: <span className="text-yellow-500 font-bold">{streak}</span>
                 </div>
-                <div className="text-lg mb-4">
-                    High Score: <span className="text-blue-500 font-bold">{Math.floor(highScore)}</span>
+                <div className="text-lg">
+                    High Score: <span className="text-purple-500 font-bold">{Math.floor(highScore)}</span>
                 </div>
             </div>
         ));
@@ -206,9 +192,7 @@
             streak: 0,
             activeBonus: null,
             gameState: 'ready',
-            prediction: null,
             safeZoneRolls: 0,
-            safeZoneMultiplier: null,
             rollCount: 0,
             lastRollResult: null,
             recentRolls: [],
@@ -220,7 +204,6 @@
             const [state, dispatch] = React.useReducer(gameReducer, initialState);
             const { timeLeft, startTimer, stopTimer, addTime, freezeTimer } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
-            const [countdown, setCountdown] = React.useState(3);
 
             React.useEffect(() => {
                 tg.ready();
@@ -250,7 +233,7 @@
                 tg.MainButton.onClick(() => {
                     if (state.gameState === 'ready') {
                         dispatch({ type: 'START_GAME' });
-                        setCountdown(3);
+                        startTimer();
                         tg.MainButton.hide();
                     }
                 });
@@ -261,15 +244,6 @@
                     stopTimer();
                 };
             }, []);
-
-            React.useEffect(() => {
-                if (state.gameState === 'playing' && countdown > 0) {
-                    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-                    return () => clearTimeout(timer);
-                } else if (countdown === 0) {
-                    startTimer();
-                }
-            }, [state.gameState, countdown, startTimer]);
 
             React.useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
@@ -292,14 +266,13 @@
                 rollDice();
                 setTimeout(() => {
                     const sum = state.dice1 + state.dice2;
-                    let isCorrect = false;
+                    let isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
                     let newScore = state.score;
                     let newMultiplier = state.multiplier;
                     let newStreak = state.streak;
                     
-                    if ((pred === 'less' && sum < 7) || (pred === 'more' && sum > 7)) {
-                        isCorrect = true;
-                        const pointsEarned = 100 * state.multiplier;
+                    if (isCorrect) {
+                        const pointsEarned = 100 * newMultiplier;
                         newScore += pointsEarned;
                         newMultiplier += 1;
                         newStreak += 1;
@@ -321,7 +294,6 @@
                     }
 
                     if (state.activeBonus === 'Safe Zone') {
-                        newMultiplier = state.safeZoneMultiplier;
                         if (state.safeZoneRolls <= 1) {
                             dispatch({ type: 'DEACTIVATE_BONUS' });
                         } else {
@@ -333,12 +305,12 @@
                         type: 'UPDATE_SCORE',
                         newScore: newScore,
                         change: newScore - state.score,
-                        multiplier: parseFloat(newMultiplier.toFixed(1)),
+                        multiplier: newMultiplier,
                         streak: newStreak,
                     });
 
-// Bonus logic
-                    if (state.rollCount % 5 === 0 && !state.activeBonus && Math.random() < 0.5) {
+                    // Bonus logic
+                    if (state.rollCount % 5 === 4 && !state.activeBonus && Math.random() < 0.5) {
                         const bonusRoll = Math.random();
                         if (bonusRoll < 0.4) {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
@@ -346,12 +318,13 @@
                         } else if (bonusRoll < 0.8) {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
                             freezeTimer();
+                            addTime(5);
                             playBonus();
                         }
                         // 20% chance of no bonus
                     }
                 }, 500);
-            }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer]);
+            }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer, addTime]);
 
             const handleAllIn = React.useCallback(async (pred) => {
                 rollDice();
@@ -397,12 +370,12 @@
                     tg.MainButton.setText("Play Again");
                     tg.MainButton.show();
                     tg.MainButton.onClick(() => {
-                        dispatch({ type: 'RESTART_GAME' });
-                        setCountdown(3);
+                        dispatch({ type: 'START_GAME' });
+                        startTimer();
                         tg.MainButton.hide();
                     });
                 }
-            }, [state.gameState, state.score, state.highScore]);
+            }, [state.gameState, state.score, state.highScore, startTimer]);
 
             const Tutorial = React.memo(() => (
                 <div className="text-center mb-6">
@@ -425,14 +398,6 @@
                             </div>
                         );
                     case 'playing':
-                        if (countdown > 0) {
-                            return (
-                                <div className="text-center">
-                                    <div className="text-6xl font-bold mb-4">{countdown}</div>
-                                    <p className="text-xl">Get ready to predict!</p>
-                                </div>
-                            );
-                        }
                         return (
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-4">
@@ -445,7 +410,7 @@
                                     scoreChange={state.scoreChange}
                                     highScore={state.highScore}
                                 />
-                                <div className="flex justify-center space-x-6 mb-6">
+                                <div className="flex justify-center space-x-6 my-6">
                                     <DiceDisplay value={state.dice1} rolling={state.isRolling} />
                                     <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                                 </div>
@@ -461,10 +426,10 @@
                                         </div>
                                     ))}
                                 </div>
-                                <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+                                <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                                     <button
                                         aria-label="Predict less than 7"
-                                        className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        className={`w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                         onClick={() => handlePrediction('less')}
                                         disabled={state.isRolling}
                                     >
@@ -472,7 +437,7 @@
                                     </button>
                                     <button
                                         aria-label="Predict more than 7"
-                                        className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        className={`w-full sm:w-auto px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                         onClick={() => handlePrediction('more')}
                                         disabled={state.isRolling}
                                     >
@@ -489,17 +454,17 @@
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-6">Time's up! Final Score: {Math.floor(state.score)}</div>
                                 <div className="text-xl mb-6">Do you want to go All-In?</div>
-                                <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-6">
+                                <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
                                     <button
                                         aria-label="All-In: Less than 7"
-                                        className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
+                                        className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
                                         onClick={() => handleAllIn('less')}
                                     >
                                         <i className="fas fa-dice mr-2"></i>All-In: Less than 7
                                     </button>
                                     <button
                                         aria-label="All-In: More than 7"
-                                        className="px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
+                                        className="w-full sm:w-auto px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
                                         onClick={() => handleAllIn('more')}
                                     >
                                         <i className="fas fa-dice mr-2"></i>All-In: More than 7
