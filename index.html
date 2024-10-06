@@ -337,7 +337,7 @@
                                 <DiceDisplay value={state.dice1} rolling={state.isRolling} />
                                 <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                             </div>
-                            {{state.lastRollResult && (
+                            {state.lastRollResult && (
                                 <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
                                     Last Roll: {state.lastRollResult}
                                 </div>
