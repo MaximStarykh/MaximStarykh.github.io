@@ -79,11 +79,15 @@
                 tg.expand();
                 document.body.className = tg.colorScheme;
                 
-                tg.CloudStorage.getItem("highScore", (error, value) => {
-                    if (!error && value) {
-                        setHighScore(parseInt(value));
-                    }
-                });
+                try {
+                    tg.CloudStorage.getItem("highScore", (error, value) => {
+                        if (!error && value) {
+                            setHighScore(parseInt(value));
+                        }
+                    });
+                } catch (error) {
+                    console.error("Failed to retrieve high score:", error);
+                }
 
                 tg.MainButton.setText("Start Game");
                 tg.MainButton.onClick(() => {
@@ -147,6 +151,11 @@
                 tg.HapticFeedback.notificationOccurred('success');
             };
 
+            const updateScore = (newScore, change) => {
+                setScore(Math.floor(newScore));
+                setScoreChange(Math.floor(change));
+            };
+
             React.useEffect(() => {
                 if (prediction !== null && !isRolling) {
                     const sum = dice1 + dice2;
@@ -157,25 +166,22 @@
                         isCorrect = true;
                         const pointsEarned = 100 * multiplier;
                         newScore += pointsEarned;
-                        setScore(newScore);
-                        setScoreChange(pointsEarned);
+                        updateScore(newScore, pointsEarned);
                         setMultiplier(prev => prev + 1);
                         setStreak(prev => prev + 1);
                         tg.HapticFeedback.notificationOccurred('success');
                     } else if (sum === 7) {
                         if (activeBonus !== 'Safe Zone') {
-                            newScore = 0;
-                            setScore(0);
-                            setScoreChange(-score);
                             setMultiplier(1);
                             setStreak(0);
-                            tg.HapticFeedback.notificationOccurred('error');
+                            updateScore(newScore, 0);
+                            tg.HapticFeedback.notificationOccurred('warning');
                         }
                     } else {
                         if (activeBonus !== 'Safe Zone') {
                             setMultiplier(1);
                             setStreak(0);
-                            setScoreChange(0);
+                            updateScore(newScore, 0);
                             tg.HapticFeedback.notificationOccurred('warning');
                         }
                     }
@@ -190,7 +196,7 @@
                         });
                     }
 
-                    if (rollCount % 5 === 0 && !activeBonus) {
+                    if (rollCount % 5 === 0 && !activeBonus && Math.random() < 0.5) {
                         const newBonus = Math.random() < 0.5 ? 'Safe Zone' : 'Time Freeze';
                         activateBonus(newBonus);
                     }
@@ -209,12 +215,10 @@
                 if (gameState === 'allInResult' && !isRolling) {
                     const sum = dice1 + dice2;
                     if ((prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7)) {
-                        setScore(prev => prev * 2);
-                        setScoreChange(score);
+                        updateScore(score * 2, score);
                         tg.HapticFeedback.notificationOccurred('success');
                     } else {
-                        setScore(0);
-                        setScoreChange(-score);
+                        updateScore(0, -score);
                         tg.HapticFeedback.notificationOccurred('error');
                     }
                     setGameState('gameOver');
@@ -225,7 +229,11 @@
                 if (gameState === 'gameOver') {
                     if (score > highScore) {
                         setHighScore(score);
-                        tg.CloudStorage.setItem("highScore", score.toString());
+                        try {
+                            tg.CloudStorage.setItem("highScore", score.toString());
+                        } catch (error) {
+                            console.error("Failed to save high score:", error);
+                        }
                     }
                     tg.MainButton.setText("Play Again");
                     tg.MainButton.show();
@@ -310,6 +318,7 @@
                             </div>
                             <div className="flex justify-center space-x-4 mb-6">
                                 <button
+                                    aria-label="Predict less than 7"
                                     className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('less')}
                                     disabled={isRolling}
@@ -317,6 +326,7 @@
                                     <i className="fas fa-arrow-down mr-2"></i>Less than 7
                                 </button>
                                 <button
+                                    aria-label="Predict more than 7"
                                     className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('more')}
                                     disabled={isRolling}
@@ -344,12 +354,14 @@
                             <div className="text-xl mb-6">Do you want to go All-In?</div>
                             <div className="flex justify-center space-x-6">
                                 <button
+                                    aria-label="All-In: Less than 7"
                                     className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
                                     onClick={() => handleAllIn('less')}
                                 >
                                     <i className="fas fa-dice mr-2"></i>All-In: Less than 7
                                 </button>
                                 <button
+                                    aria-label="All-In: More than 7"
                                     className="px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
                                     onClick={() => handleAllIn('more')}
                                 >
