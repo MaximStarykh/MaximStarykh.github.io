@@ -95,6 +95,8 @@
                     return { ...state, gameState: 'playing' };
                 case 'END_GAME':
                     return { ...state, gameState: 'finished' };
+                case 'GAME_OVER':
+                    return { ...state, gameState: 'gameOver' };
                 case 'ROLL_DICE':
                     return {
                         ...state,
@@ -103,6 +105,7 @@
                         lastRollResult: action.dice1 + action.dice2,
                         recentRolls: [action.dice1 + action.dice2, ...state.recentRolls.slice(0, 4)],
                         rollCount: state.rollCount + 1,
+                        isRolling: false,
                     };
                 case 'UPDATE_SCORE':
                     return {
@@ -120,35 +123,22 @@
                     return { ...state, highScore: action.highScore };
                 case 'RESTART_GAME':
                     return {
-                        ...state,
-                        dice1: 1,
-                        dice2: 1,
-                        score: 0,
-                        multiplier: 1,
-                        streak: 0,
-                        activeBonus: null,
+                        ...initialState,
+                        highScore: state.highScore,
                         gameState: 'playing',
-                        prediction: null,
-                        safeZoneRolls: 0,
-                        rollCount: 0,
-                        lastRollResult: null,
-                        recentRolls: [],
-                        scoreChange: 0,
                     };
+                case 'SET_ROLLING':
+                    return { ...state, isRolling: action.isRolling };
                 default:
                     return state;
             }
         };
 
-        // Sound effects
+        // Sound effects (placeholder function)
         const useSound = () => {
-            const diceSound = new Audio('https://example.com/dice-roll.mp3');
-            const correctSound = new Audio('https://example.com/correct-prediction.mp3');
-            const incorrectSound = new Audio('https://example.com/incorrect-prediction.mp3');
-
-            const playDiceRoll = () => diceSound.play().catch(e => console.error("Error playing sound:", e));
-            const playCorrect = () => correctSound.play().catch(e => console.error("Error playing sound:", e));
-            const playIncorrect = () => incorrectSound.play().catch(e => console.error("Error playing sound:", e));
+            const playDiceRoll = () => console.log("Dice roll sound");
+            const playCorrect = () => console.log("Correct prediction sound");
+            const playIncorrect = () => console.log("Incorrect prediction sound");
 
             return { playDiceRoll, playCorrect, playIncorrect };
         };
@@ -175,7 +165,7 @@
             </div>
         ));
 
-        const ScoreDisplay = React.memo(({ score, multiplier, streak, scoreChange }) => (
+        const ScoreDisplay = React.memo(({ score, multiplier, streak, scoreChange, highScore }) => (
             <div>
                 <div className="text-2xl mb-4">
                     Score: <span className="text-green-500 font-bold">{Math.floor(score)}</span>
@@ -186,30 +176,34 @@
                         </span>
                     )}
                 </div>
-                <div className="text-lg mb-4">
+                <div className="text-lg mb-2">
                     Streak: <span className="text-yellow-500 font-bold">{streak}</span>
+                </div>
+                <div className="text-lg mb-4">
+                    High Score: <span className="text-blue-500 font-bold">{Math.floor(highScore)}</span>
                 </div>
             </div>
         ));
 
-        function DiceProphet() {
-            const initialState = {
-                dice1: 1,
-                dice2: 1,
-                score: 0,
-                highScore: 0,
-                multiplier: 1,
-                streak: 0,
-                activeBonus: null,
-                gameState: 'ready',
-                prediction: null,
-                safeZoneRolls: 0,
-                rollCount: 0,
-                lastRollResult: null,
-                recentRolls: [],
-                scoreChange: 0,
-            };
+        const initialState = {
+            dice1: 1,
+            dice2: 1,
+            score: 0,
+            highScore: 0,
+            multiplier: 1,
+            streak: 0,
+            activeBonus: null,
+            gameState: 'ready',
+            prediction: null,
+            safeZoneRolls: 0,
+            rollCount: 0,
+            lastRollResult: null,
+            recentRolls: [],
+            scoreChange: 0,
+            isRolling: false,
+        };
 
+        function DiceProphet() {
             const [state, dispatch] = React.useReducer(gameReducer, initialState);
             const { timeLeft, startTimer, stopTimer, addTime } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect } = useSound();
@@ -232,6 +226,7 @@
                         }
                     } catch (error) {
                         console.error("Failed to retrieve high score:", error);
+                        tg.showAlert("Failed to retrieve high score. Your progress may not be saved.");
                     }
                 };
 
@@ -260,88 +255,117 @@
             }, [timeLeft, state.gameState]);
 
             const rollDice = React.useCallback(() => {
+                dispatch({ type: 'SET_ROLLING', isRolling: true });
                 playDiceRoll();
                 tg.HapticFeedback.impactOccurred('medium');
-                const newDice1 = Math.floor(Math.random() * 6) + 1;
-                const newDice2 = Math.floor(Math.random() * 6) + 1;
-                dispatch({ type: 'ROLL_DICE', dice1: newDice1, dice2: newDice2 });
+                setTimeout(() => {
+                    const newDice1 = Math.floor(Math.random() * 6) + 1;
+                    const newDice2 = Math.floor(Math.random() * 6) + 1;
+                    dispatch({ type: 'ROLL_DICE', dice1: newDice1, dice2: newDice2 });
+                }, 500);
             }, [playDiceRoll]);
 
             const handlePrediction = React.useCallback((pred) => {
                 rollDice();
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                        const sum = state.dice1 + state.dice2;
-                        let isCorrect = false;
-                        let newScore = state.score;
-                        let newMultiplier = state.multiplier;
-                        let newStreak = state.streak;
-                        
-                        if ((pred === 'less' && sum < 7) || (pred === 'more' && sum > 7)) {
-                            isCorrect = true;
-                            const pointsEarned = 100 * state.multiplier;
-                            newScore += pointsEarned;
-                            newMultiplier += 1;
-                            newStreak += 1;
-                            playCorrect();
-                            tg.HapticFeedback.notificationOccurred('success');
-                        } else if (sum === 7) {
+                setTimeout(() => {
+                    const sum = state.dice1 + state.dice2;
+                    let isCorrect = false;
+                    let newScore = state.score;
+                    let newMultiplier = state.multiplier;
+                    let newStreak = state.streak;
+                    
+                    if ((pred === 'less' && sum < 7) || (pred === 'more' && sum > 7)) {
+                        isCorrect = true;
+                        const pointsEarned = 100 * state.multiplier;
+                        newScore += pointsEarned;
+                        newMultiplier += 1;
+                        newStreak += 1;
+                        playCorrect();
+                        tg.HapticFeedback.notificationOccurred('success');
+                    } else if (sum === 7) {
+                        if (state.activeBonus !== 'Safe Zone') {
                             newScore = 0;
                             newMultiplier = 1;
                             newStreak = 0;
                             playIncorrect();
                             tg.HapticFeedback.notificationOccurred('error');
+                        }
+                    } else {
+                        if (state.activeBonus !== 'Safe Zone') {
+                            newMultiplier = 1;
+                            newStreak = 0;
+                        }
+                        playIncorrect();
+                        tg.HapticFeedback.notificationOccurred('warning');
+                    }
+
+                    dispatch({
+                        type: 'UPDATE_SCORE',
+                        newScore: newScore,
+                        change: newScore - state.score,
+                        multiplier: newMultiplier,
+                        streak: newStreak,
+                    });
+
+                    if (state.activeBonus === 'Safe Zone') {
+                        if (state.safeZoneRolls <= 1) {
+                            dispatch({ type: 'DEACTIVATE_BONUS' });
                         } else {
-                            if (state.activeBonus !== 'Safe Zone') {
-                                newMultiplier = 1;
-                                newStreak = 0;
-                            }
-                            playIncorrect();
-                            tg.HapticFeedback.notificationOccurred('warning');
+                            dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone', safeZoneRolls: state.safeZoneRolls - 1 });
                         }
+                    }
 
-                        dispatch({
-                            type: 'UPDATE_SCORE',
-                            newScore: newScore,
-                            change: newScore - state.score,
-                            multiplier: newMultiplier,
-                            streak: newStreak,
-                        });
-
-                        if (state.activeBonus === 'Safe Zone') {
-                            if (state.safeZoneRolls <= 1) {
-                                dispatch({ type: 'DEACTIVATE_BONUS' });
-                            }
+                    if (state.rollCount % 5 === 4 && !state.activeBonus && Math.random() < 0.5) {
+                        const bonusRoll = Math.random();
+                        if (bonusRoll < 0.4) {
+                            dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
+                        } else if (bonusRoll < 0.8) {
+                            dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
+                            addTime(5);
                         }
-
-                        if (state.rollCount % 5 === 0 && !state.activeBonus && Math.random() < 0.5) {
-                            const bonusRoll = Math.random();
-                            if (bonusRoll < 0.4) {
-                                dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
-                            } else if (bonusRoll < 0.8) {
-                                dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
-                                addTime(5);
-                            }
-                        }
-
-                        resolve();
-                    }, 500);
-                });
+                    }
+                }, 500);
             }, [state, rollDice, playCorrect, playIncorrect, addTime]);
 
             const handleAllIn = React.useCallback(async (pred) => {
-                await handlePrediction(pred);
-                dispatch({ type: 'END_GAME' });
-            }, [handlePrediction]);
+                rollDice();
+                setTimeout(() => {
+                    const sum = state.dice1 + state.dice2;
+                    let newScore = state.score;
+                    if ((pred === 'less' && sum < 7) || (pred === 'more' && sum > 7)) {
+                        newScore *= 2;
+                        playCorrect();
+                        tg.HapticFeedback.notificationOccurred('success');
+} else {
+                        newScore = 0;
+                        playIncorrect();
+                        tg.HapticFeedback.notificationOccurred('error');
+                    }
+                    dispatch({
+                        type: 'UPDATE_SCORE',
+                        newScore: newScore,
+                        change: newScore - state.score,
+                        multiplier: 1,
+                        streak: 0,
+                    });
+                    dispatch({ type: 'GAME_OVER' });
+                }, 500);
+            }, [state, rollDice, playCorrect, playIncorrect]);
 
             React.useEffect(() => {
-                if (state.gameState === 'finished') {
+                if (state.gameState === 'gameOver') {
                     if (state.score > state.highScore) {
                         dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
-try {
-                            tg.CloudStorage.setItem("highScore", state.score.toString());
+                        try {
+                            tg.CloudStorage.setItem("highScore", state.score.toString(), (error) => {
+                                if (error) {
+                                    console.error("Failed to save high score:", error);
+                                    tg.showAlert("Failed to save high score. Your progress may not be saved.");
+                                }
+                            });
                         } catch (error) {
                             console.error("Failed to save high score:", error);
+                            tg.showAlert("Failed to save high score. Your progress may not be saved.");
                         }
                     }
                     tg.MainButton.setText("Play Again");
@@ -354,7 +378,7 @@ try {
                 }
             }, [state.gameState, state.score, state.highScore, startTimer]);
 
-            const Tutorial = () => (
+            const Tutorial = React.memo(() => (
                 <div className="text-center mb-6">
                     <h2 className="text-2xl font-bold mb-2">How to Play</h2>
                     <p className="mb-2">1. Predict if the sum of dice will be less or more than 7.</p>
@@ -362,7 +386,7 @@ try {
                     <p className="mb-2">3. Be careful! Rolling a 7 resets your score to zero.</p>
                     <p>4. Look out for bonuses to help you along the way!</p>
                 </div>
-            );
+            ));
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
@@ -386,10 +410,11 @@ try {
                                 multiplier={state.multiplier} 
                                 streak={state.streak} 
                                 scoreChange={state.scoreChange}
+                                highScore={state.highScore}
                             />
                             <div className="flex justify-center space-x-6 mb-6">
-                                <DiceDisplay value={state.dice1} rolling={state.rollCount > 0} />
-                                <DiceDisplay value={state.dice2} rolling={state.rollCount > 0} />
+                                <DiceDisplay value={state.dice1} rolling={state.isRolling} />
+                                <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                             </div>
                             {state.lastRollResult && (
                                 <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
@@ -406,17 +431,17 @@ try {
                             <div className="flex justify-center space-x-4 mb-6">
                                 <button
                                     aria-label="Predict less than 7"
-                                    className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${state.rollCount === 0 ? 'pulse' : ''}`}
+                                    className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('less')}
-                                    disabled={state.rollCount > 0}
+                                    disabled={state.isRolling}
                                 >
                                     <i className="fas fa-arrow-down mr-2"></i>Less than 7
                                 </button>
                                 <button
                                     aria-label="Predict more than 7"
-                                    className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${state.rollCount === 0 ? 'pulse' : ''}`}
+                                    className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                     onClick={() => handlePrediction('more')}
-                                    disabled={state.rollCount > 0}
+                                    disabled={state.isRolling}
                                 >
                                     <i className="fas fa-arrow-up mr-2"></i>More than 7
                                 </button>
