@@ -72,91 +72,6 @@
 
         const rollDie = () => Math.floor(secureRandom() * 6) + 1;
 
-        // Game state reducer
-        const gameReducer = (state, action) => {
-            switch (action.type) {
-                case 'START_GAME':
-                    return { ...state, gameState: 'playing', timeLeft: INITIAL_TIME };
-                case 'END_GAME':
-                    return { ...state, gameState: 'finished' };
-                case 'ROLL_DICE':
-                    return { ...state, dice1: rollDie(), dice2: rollDie(), isRolling: true };
-                case 'FINISH_ROLL':
-                    const sum = state.dice1 + state.dice2;
-                    let newScore = state.score;
-                    let newMultiplier = state.multiplier;
-                    let newStreak = state.streak;
-                    let scoreChange = 0;
-
-                    if ((state.prediction === 'less' && sum < 7) || 
-                        (state.prediction === 'more' && sum > 7) ||
-                        (state.prediction === 'seven' && sum === 7)) {
-                        const pointsEarned = 100 * state.multiplier;
-                        newScore += pointsEarned;
-                        scoreChange = pointsEarned;
-                        newMultiplier = Math.min(state.multiplier + 1, MAX_MULTIPLIER);
-                        newStreak++;
-                    } else if (sum !== 7 || state.activeBonus !== 'Safe Zone') {
-                        newMultiplier = 1;
-                        newStreak = 0;
-                        if (sum === 7) {
-                            scoreChange = -state.score;
-                            newScore = 0;
-                        }
-                    }
-
-                    return {
-                        ...state,
-                        isRolling: false,
-                        score: newScore,
-                        multiplier: newMultiplier,
-                        streak: newStreak,
-                        scoreChange,
-                        lastRollResult: sum,
-                        recentRolls: [sum, ...state.recentRolls.slice(0, 4)],
-                        rollCount: state.rollCount + 1,
-                        prediction: null
-                    };
-                case 'SET_PREDICTION':
-                    return { ...state, prediction: action.payload };
-                case 'ACTIVATE_BONUS':
-                    return { ...state, activeBonus: action.payload, safeZoneRolls: action.payload === 'Safe Zone' ? 3 : 0 };
-                case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0 };
-                case 'TICK_TIMER':
-                    return { ...state, timeLeft: state.timeLeft - 1 };
-                case 'FREEZE_TIME':
-                    return { ...state, timeLeft: state.timeLeft + 5 };
-                case 'USE_SAFE_ZONE':
-                    return { ...state, safeZoneRolls: state.safeZoneRolls - 1 };
-                case 'ALL_IN':
-                    return { ...state, gameState: 'allInResult', prediction: action.payload };
-                case 'GAME_OVER':
-                    return { ...state, gameState: 'gameOver', highScore: Math.max(state.score, state.highScore) };
-                case 'RESET_GAME':
-                    return {
-                        ...state,
-                        dice1: 1,
-                        dice2: 1,
-                        score: 0,
-                        multiplier: 1,
-                        streak: 0,
-                        timeLeft: INITIAL_TIME,
-                        activeBonus: null,
-                        gameState: 'playing',
-                        prediction: null,
-                        safeZoneRolls: 0,
-                        rollCount: 0,
-                        lastRollResult: null,
-                        recentRolls: [],
-                        scoreChange: 0
-                    };
-                default:
-                    return state;
-            }
-        };
-
-        // DiceDisplay component
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}>
                 {value}
@@ -168,7 +83,6 @@
             rolling: PropTypes.bool.isRequired
         };
 
-        // BonusDisplay component
         const BonusDisplay = React.memo(({ bonus }) => (
             <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
                 <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`}></i>
@@ -181,7 +95,7 @@
         };
 
         function DiceProphet() {
-            const [state, dispatch] = React.useReducer(gameReducer, {
+            const [state, setState] = React.useState({
                 dice1: 1,
                 dice2: 1,
                 score: 0,
@@ -207,14 +121,14 @@
                 
                 tg.CloudStorage.getItem("highScore", (error, value) => {
                     if (!error && value) {
-                        dispatch({ type: 'SET_HIGH_SCORE', payload: parseInt(value) });
+                        setState(prevState => ({ ...prevState, highScore: parseInt(value) }));
                     }
                 });
 
                 tg.MainButton.setText("Start Game");
                 tg.MainButton.onClick(() => {
                     if (state.gameState === 'ready') {
-                        dispatch({ type: 'START_GAME' });
+                        setState(prevState => ({ ...prevState, gameState: 'playing' }));
                         tg.MainButton.hide();
                     }
                 });
@@ -226,79 +140,170 @@
             }, []);
 
             React.useEffect(() => {
-                let timer;
-                if (state.gameState === 'playing' && !state.isRolling) {
-                    timer = setInterval(() => {
-                        if (state.timeLeft > 0) {
-                            dispatch({ type: 'TICK_TIMER' });
-                        } else {
-                            dispatch({ type: 'END_GAME' });
-                        }
+                if (state.gameState === 'playing') {
+                    const timer = setInterval(() => {
+                        setState(prevState => {
+                            if (prevState.timeLeft <= 1) {
+                                clearInterval(timer);
+                                return { ...prevState, timeLeft: 0, gameState: 'finished' };
+                            }
+                            return { ...prevState, timeLeft: prevState.timeLeft - 1 };
+                        });
                     }, 1000);
-                }
-                return () => clearInterval(timer);
-            }, [state.gameState, state.isRolling, state.timeLeft]);
 
-            React.useEffect(() => {
-                if (state.rollCount % BONUS_ACTIVATION_INTERVAL === 0 && state.rollCount > 0 && !state.activeBonus) {
-                    const newBonus = Math.random() < 0.5 ? 'Safe Zone' : 'Time Freeze';
-                    dispatch({ type: 'ACTIVATE_BONUS', payload: newBonus });
-                    if (newBonus === 'Time Freeze') {
-                        dispatch({ type: 'FREEZE_TIME' });
-                    }
+                    return () => clearInterval(timer);
                 }
-            }, [state.rollCount, state.activeBonus]);
+            }, [state.gameState]);
 
-            const handlePrediction = React.useCallback((pred) => {
-                dispatch({ type: 'SET_PREDICTION', payload: pred });
-                dispatch({ type: 'ROLL_DICE' });
+            const rollDice = React.useCallback(() => {
+                setState(prevState => ({ ...prevState, isRolling: true, rollCount: prevState.rollCount + 1 }));
                 tg.HapticFeedback.impactOccurred('medium');
                 setTimeout(() => {
-                    dispatch({ type: 'FINISH_ROLL' });
+                    const newDice1 = rollDie();
+                    const newDice2 = rollDie();
+                    const newResult = newDice1 + newDice2;
+                    setState(prevState => ({
+                        ...prevState,
+                        dice1: newDice1,
+                        dice2: newDice2,
+                        isRolling: false,
+                        lastRollResult: newResult,
+                        recentRolls: [newResult, ...prevState.recentRolls.slice(0, 4)]
+                    }));
                 }, ROLL_ANIMATION_DURATION);
             }, []);
 
-            const handleAllIn = React.useCallback((pred) => {
-                dispatch({ type: 'ALL_IN', payload: pred });
+            const handlePrediction = React.useCallback((pred) => {
+                setState(prevState => ({ ...prevState, prediction: pred }));
+                rollDice();
+            }, [rollDice]);
+
+            const activateBonus = React.useCallback((bonus) => {
+                setState(prevState => ({
+                    ...prevState,
+                    activeBonus: bonus,
+                    safeZoneRolls: bonus === 'Safe Zone' ? 3 : prevState.safeZoneRolls,
+                    timeLeft: bonus === 'Time Freeze' ? prevState.timeLeft + 5 : prevState.timeLeft
+                }));
+                tg.HapticFeedback.notificationOccurred('success');
             }, []);
+
+            React.useEffect(() => {
+                if (state.prediction !== null && !state.isRolling) {
+                    const sum = state.dice1 + state.dice2;
+                    let isCorrect = (state.prediction === 'less' && sum < 7) || (state.prediction === 'more' && sum > 7);
+                    
+                    setState(prevState => {
+                        let newScore = prevState.score;
+                        let newMultiplier = prevState.multiplier;
+                        let newStreak = prevState.streak;
+                        let scoreChange = 0;
+                        
+                        if (isCorrect) {
+                            const pointsEarned = 100 * prevState.multiplier;
+                            newScore += pointsEarned;
+                            scoreChange = pointsEarned;
+                            newMultiplier = Math.min(prevState.multiplier + 1, MAX_MULTIPLIER);
+                            newStreak++;
+                            tg.HapticFeedback.notificationOccurred('success');
+                        } else if (sum === 7) {
+                            if (prevState.activeBonus !== 'Safe Zone') {
+                                newScore = 0;
+                                scoreChange = -prevState.score;
+                                newMultiplier = 1;
+                                newStreak = 0;
+                                tg.HapticFeedback.notificationOccurred('error');
+                            }
+                        } else {
+                            if (prevState.activeBonus !== 'Safe Zone') {
+                                newMultiplier = 1;
+                                newStreak = 0;
+                                tg.HapticFeedback.notificationOccurred('warning');
+                            }
+                        }
+
+                        let newActiveBonus = prevState.activeBonus;
+                        let newSafeZoneRolls = prevState.safeZoneRolls;
+                        if (prevState.activeBonus === 'Safe Zone') {
+                            newSafeZoneRolls--;
+                            if (newSafeZoneRolls <= 0) {
+                                newActiveBonus = null;
+                                newSafeZoneRolls = 0;
+                            }
+                        }
+
+                        if (prevState.rollCount % BONUS_ACTIVATION_INTERVAL === 0 && !prevState.activeBonus) {
+                            newActiveBonus = Math.random() < 0.5 ? 'Safe Zone' : 'Time Freeze';
+                            if (newActiveBonus === 'Safe Zone') {
+                                newSafeZoneRolls = 3;
+                            }
+                        }
+
+                        return {
+                            ...prevState,
+                            score: newScore,
+                            multiplier: newMultiplier,
+                            streak: newStreak,
+                            scoreChange,
+                            prediction: null,
+                            activeBonus: newActiveBonus,
+                            safeZoneRolls: newSafeZoneRolls
+                        };
+                    });
+                }
+            }, [state.dice1, state.dice2, state.prediction, state.isRolling]);
+
+            const handleAllIn = React.useCallback((pred) => {
+                setState(prevState => ({ ...prevState, prediction: pred, gameState: 'allInResult' }));
+                rollDice();
+            }, [rollDice]);
 
             React.useEffect(() => {
                 if (state.gameState === 'allInResult' && !state.isRolling) {
                     const sum = state.dice1 + state.dice2;
-                    if ((state.prediction === 'less' && sum < 7) || 
-                        (state.prediction === 'more' && sum > 7) ||
-                        (state.prediction === 'seven' && sum === 7)) {
-                        dispatch({ type: 'FINISH_ROLL' });
-                        tg.HapticFeedback.notificationOccurred('success');
-                    } else {
-                        dispatch({ type: 'GAME_OVER' });
-                        tg.HapticFeedback.notificationOccurred('error');
-                    }
+                    const isCorrect = (state.prediction === 'less' && sum < 7) || (state.prediction === 'more' && sum > 7);
+                    
+                    setState(prevState => ({
+                        ...prevState,
+                        score: isCorrect ? prevState.score * 2 : 0,
+                        scoreChange: isCorrect ? prevState.score : -prevState.score,
+                        gameState: 'gameOver'
+                    }));
+
+                    tg.HapticFeedback.notificationOccurred(isCorrect ? 'success' : 'error');
                 }
             }, [state.gameState, state.isRolling, state.dice1, state.dice2, state.prediction]);
 
             React.useEffect(() => {
                 if (state.gameState === 'gameOver') {
                     if (state.score > state.highScore) {
+                        setState(prevState => ({ ...prevState, highScore: state.score }));
                         tg.CloudStorage.setItem("highScore", state.score.toString());
                     }
                     tg.MainButton.setText("Play Again");
                     tg.MainButton.show();
-                    tg.MainButton.onClick(() => dispatch({ type: 'RESET_GAME' }));
+                    tg.MainButton.onClick(() => {
+                        setState(prevState => ({
+                            ...prevState,
+                            dice1: 1,
+                            dice2: 1,
+                            score: 0,
+                            multiplier: 1,
+                            streak: 0,
+                            timeLeft: INITIAL_TIME,
+                            activeBonus: null,
+                            gameState: 'playing',
+                            prediction: null,
+                            safeZoneRolls: 0,
+                            rollCount: 0,
+                            lastRollResult: null,
+                            recentRolls: [],
+                            scoreChange: 0
+                        }));
+                        tg.MainButton.hide();
+                    });
                 }
             }, [state.gameState, state.score, state.highScore]);
-
-            const scoreDisplay = React.useMemo(() => (
-                <div className="text-2xl mb-4">
-                    Score: <span className="text-green-500 font-bold">{Math.floor(state.score)}</span>
-                    <span className="text-sm ml-2">(×{state.multiplier})</span>
-                    {state.scoreChange !== 0 && (
-                        <span className={`ml-2 ${state.scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
-                            {state.scoreChange > 0 ? '+' : ''}{state.scoreChange}
-                        </span>
-                    )}
-                </div>
-            ), [state.score, state.multiplier, state.scoreChange]);
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
@@ -316,7 +321,15 @@
                             <div className="text-3xl font-bold mb-4">
                                 <i className="far fa-clock mr-2"></i>{state.timeLeft}s
                             </div>
-                            {scoreDisplay}
+                            <div className="text-2xl mb-4">
+                                Score: <span className="text-green-500 font-bold">{Math.floor(state.score)}</span>
+                                <span className="text-sm ml-2">(×{state.multiplier})</span>
+                                {state.scoreChange !== 0 && (
+                                    <span className={`ml-2 ${state.scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
+                                        {state.scoreChange > 0 ? '+' : ''}{state.scoreChange}
+                                    </span>
+                                )}
+                            </div>
                             <div className="text-lg mb-4">
                                 Streak: <span className="text-yellow-500 font-bold">{state.streak}</span>
                             </div>
@@ -324,7 +337,7 @@
                                 <DiceDisplay value={state.dice1} rolling={state.isRolling} />
                                 <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                             </div>
-                            {state.lastRollResult && (
+                            {{state.lastRollResult && (
                                 <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
                                     Last Roll: {state.lastRollResult}
                                 </div>
