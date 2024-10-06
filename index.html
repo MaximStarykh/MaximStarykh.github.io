@@ -139,13 +139,14 @@
             const playDiceRoll = () => console.log("Dice roll sound");
             const playCorrect = () => console.log("Correct prediction sound");
             const playIncorrect = () => console.log("Incorrect prediction sound");
+            const playBonus = () => console.log("Bonus activation sound");
 
-            return { playDiceRoll, playCorrect, playIncorrect };
+            return { playDiceRoll, playCorrect, playIncorrect, playBonus };
         };
 
         // Components
         const DiceDisplay = React.memo(({ value, rolling }) => (
-            <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}>
+            <div className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`} aria-label={`Dice showing ${value}`}>
                 {value}
             </div>
         ));
@@ -206,7 +207,7 @@
         function DiceProphet() {
             const [state, dispatch] = React.useReducer(gameReducer, initialState);
             const { timeLeft, startTimer, stopTimer, addTime } = useGameTimer(60);
-            const { playDiceRoll, playCorrect, playIncorrect } = useSound();
+            const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
 
             React.useEffect(() => {
                 tg.ready();
@@ -278,7 +279,7 @@
                         isCorrect = true;
                         const pointsEarned = 100 * state.multiplier;
                         newScore += pointsEarned;
-                        newMultiplier += 1;
+                        newMultiplier += 0.1;
                         newStreak += 1;
                         playCorrect();
                         tg.HapticFeedback.notificationOccurred('success');
@@ -303,7 +304,7 @@
                         type: 'UPDATE_SCORE',
                         newScore: newScore,
                         change: newScore - state.score,
-                        multiplier: newMultiplier,
+                        multiplier: parseFloat(newMultiplier.toFixed(1)),
                         streak: newStreak,
                     });
 
@@ -315,17 +316,21 @@
                         }
                     }
 
-                    if (state.rollCount % 5 === 4 && !state.activeBonus && Math.random() < 0.5) {
+                    // New bonus logic
+                    if (state.rollCount % 5 === 0 && !state.activeBonus && Math.random() < 0.5) {
                         const bonusRoll = Math.random();
                         if (bonusRoll < 0.4) {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
+                            playBonus();
                         } else if (bonusRoll < 0.8) {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
                             addTime(5);
+                            playBonus();
                         }
+                        // 20% chance of no bonus
                     }
                 }, 500);
-            }, [state, rollDice, playCorrect, playIncorrect, addTime]);
+            }, [state, rollDice, playCorrect, playIncorrect, playBonus, addTime]);
 
             const handleAllIn = React.useCallback(async (pred) => {
                 rollDice();
@@ -336,12 +341,12 @@
                         newScore *= 2;
                         playCorrect();
                         tg.HapticFeedback.notificationOccurred('success');
-} else {
+                    } else {
                         newScore = 0;
                         playIncorrect();
                         tg.HapticFeedback.notificationOccurred('error');
                     }
-                    dispatch({
+dispatch({
                         type: 'UPDATE_SCORE',
                         newScore: newScore,
                         change: newScore - state.score,
@@ -388,100 +393,108 @@
                 </div>
             ));
 
+            const renderGameContent = () => {
+                switch (state.gameState) {
+                    case 'ready':
+                        return (
+                            <div className="text-center">
+                                <Tutorial />
+                                <p className="mb-4 text-lg">Predict the dice roll outcome and earn points!</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Press "Start Game" to begin your prophecy.</p>
+                            </div>
+                        );
+                    case 'playing':
+                        return (
+                            <div className="text-center">
+                                <div className="text-3xl font-bold mb-4">
+                                    <i className="far fa-clock mr-2"></i>{timeLeft}s
+                                </div>
+                                <ScoreDisplay 
+                                    score={state.score} 
+                                    multiplier={state.multiplier} 
+                                    streak={state.streak} 
+                                    scoreChange={state.scoreChange}
+                                    highScore={state.highScore}
+                                />
+                                <div className="flex justify-center space-x-6 mb-6">
+                                    <DiceDisplay value={state.dice1} rolling={state.isRolling} />
+                                    <DiceDisplay value={state.dice2} rolling={state.isRolling} />
+                                </div>
+                                {state.lastRollResult && (
+                                    <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
+                                        Last Roll: {state.lastRollResult}
+                                    </div>
+                                )}
+                                <div className="flex justify-center space-x-2 mb-4">
+                                    {state.recentRolls.map((roll, index) => (
+                                        <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-red-500' : roll > 7 ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
+                                            {roll}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex justify-center space-x-4 mb-6">
+                                    <button
+                                        aria-label="Predict less than 7"
+                                        className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        onClick={() => handlePrediction('less')}
+                                        disabled={state.isRolling}
+                                    >
+                                        <i className="fas fa-arrow-down mr-2"></i>Less than 7
+                                    </button>
+                                    <button
+                                        aria-label="Predict more than 7"
+                                        className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        onClick={() => handlePrediction('more')}
+                                        disabled={state.isRolling}
+                                    >
+                                        <i className="fas fa-arrow-up mr-2"></i>More than 7
+                                    </button>
+                                </div>
+                                {state.activeBonus && (
+                                    <BonusDisplay bonus={state.activeBonus} safeZoneRolls={state.safeZoneRolls} />
+                                )}
+                            </div>
+                        );
+                    case 'finished':
+                        return (
+                            <div className="text-center">
+                                <div className="text-3xl font-bold mb-6">Time's up! Final Score: {Math.floor(state.score)}</div>
+                                <div className="text-xl mb-6">Do you want to go All-In?</div>
+                                <div className="flex justify-center space-x-6">
+                                    <button
+                                        aria-label="All-In: Less than 7"
+                                        className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
+                                        onClick={() => handleAllIn('less')}
+                                    >
+                                        <i className="fas fa-dice mr-2"></i>All-In: Less than 7
+                                    </button>
+                                    <button
+                                        aria-label="All-In: More than 7"
+                                        className="px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
+                                        onClick={() => handleAllIn('more')}
+                                    >
+                                        <i className="fas fa-dice mr-2"></i>All-In: More than 7
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    case 'gameOver':
+                        return (
+                            <div className="text-center">
+                                <div className="text-4xl font-bold mb-6 fade-in">Game Over!</div>
+                                <div className="text-3xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
+                                <div className="text-2xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
+                            </div>
+                        );
+                    default:
+                        return null;
+                }
+            };
+
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
                     <h1 className="text-4xl font-bold mb-6 text-blue-600 dark:text-blue-400">Dice Prophet</h1>
-                    
-                    {state.gameState === 'ready' && (
-                        <div className="text-center">
-                            <Tutorial />
-                            <p className="mb-4 text-lg">Predict the dice roll outcome and earn points!</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Press "Start Game" to begin your prophecy.</p>
-                        </div>
-                    )}
-
-                    {state.gameState === 'playing' && (
-                        <div className="text-center">
-                            <div className="text-3xl font-bold mb-4">
-                                <i className="far fa-clock mr-2"></i>{timeLeft}s
-                            </div>
-                            <ScoreDisplay 
-                                score={state.score} 
-                                multiplier={state.multiplier} 
-                                streak={state.streak} 
-                                scoreChange={state.scoreChange}
-                                highScore={state.highScore}
-                            />
-                            <div className="flex justify-center space-x-6 mb-6">
-                                <DiceDisplay value={state.dice1} rolling={state.isRolling} />
-                                <DiceDisplay value={state.dice2} rolling={state.isRolling} />
-                            </div>
-                            {state.lastRollResult && (
-                                <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
-                                    Last Roll: {state.lastRollResult}
-                                </div>
-                            )}
-                            <div className="flex justify-center space-x-2 mb-4">
-                                {state.recentRolls.map((roll, index) => (
-                                    <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-red-500' : roll > 7 ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
-                                        {roll}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex justify-center space-x-4 mb-6">
-                                <button
-                                    aria-label="Predict less than 7"
-                                    className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                                    onClick={() => handlePrediction('less')}
-                                    disabled={state.isRolling}
-                                >
-                                    <i className="fas fa-arrow-down mr-2"></i>Less than 7
-                                </button>
-                                <button
-                                    aria-label="Predict more than 7"
-                                    className={`px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                                    onClick={() => handlePrediction('more')}
-                                    disabled={state.isRolling}
-                                >
-                                    <i className="fas fa-arrow-up mr-2"></i>More than 7
-                                </button>
-                            </div>
-                            {state.activeBonus && (
-                                <BonusDisplay bonus={state.activeBonus} safeZoneRolls={state.safeZoneRolls} />
-                            )}
-                        </div>
-                    )}
-
-                    {state.gameState === 'finished' && (
-                        <div className="text-center">
-                            <div className="text-3xl font-bold mb-6">Time's up! Final Score: {Math.floor(state.score)}</div>
-                            <div className="text-xl mb-6">Do you want to go All-In?</div>
-                            <div className="flex justify-center space-x-6">
-                                <button
-                                    aria-label="All-In: Less than 7"
-                                    className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
-                                    onClick={() => handleAllIn('less')}
-                                >
-                                    <i className="fas fa-dice mr-2"></i>All-In: Less than 7
-                                </button>
-                                <button
-                                    aria-label="All-In: More than 7"
-                                    className="px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 pulse"
-                                    onClick={() => handleAllIn('more')}
-                                >
-                                    <i className="fas fa-dice mr-2"></i>All-In: More than 7
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {state.gameState === 'gameOver' && (
-                        <div className="text-center">
-                            <div className="text-4xl font-bold mb-6 fade-in">Game Over!</div>
-                            <div className="text-3xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
-                            <div className="text-2xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
-                        </div>
-                    )}
+                    {renderGameContent()}
                 </div>
             );
         }
