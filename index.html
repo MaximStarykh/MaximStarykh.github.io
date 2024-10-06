@@ -59,19 +59,20 @@
         // Custom hook for managing the timer
         const useGameTimer = (initialTime) => {
             const [timeLeft, setTimeLeft] = React.useState(initialTime);
+            const [isFrozen, setIsFrozen] = React.useState(false);
             const timerRef = React.useRef(null);
 
             const startTimer = React.useCallback(() => {
                 timerRef.current = setInterval(() => {
                     setTimeLeft((prevTime) => {
-                        if (prevTime <= 1) {
+                        if (isFrozen || prevTime <= 1) {
                             clearInterval(timerRef.current);
-                            return 0;
+                            return prevTime;
                         }
                         return prevTime - 1;
                     });
                 }, 1000);
-            }, []);
+            }, [isFrozen]);
 
             const stopTimer = React.useCallback(() => {
                 clearInterval(timerRef.current);
@@ -81,11 +82,16 @@
                 setTimeLeft(prevTime => prevTime + seconds);
             }, []);
 
+            const freezeTimer = React.useCallback(() => {
+                setIsFrozen(true);
+                setTimeout(() => setIsFrozen(false), 5000);
+            }, []);
+
             React.useEffect(() => {
                 return () => clearInterval(timerRef.current);
             }, []);
 
-            return { timeLeft, startTimer, stopTimer, addTime };
+            return { timeLeft, startTimer, stopTimer, addTime, freezeTimer };
         };
 
         // Game reducer for state management
@@ -116,9 +122,14 @@
                         streak: action.streak,
                     };
                 case 'ACTIVATE_BONUS':
-                    return { ...state, activeBonus: action.bonus, safeZoneRolls: action.bonus === 'Safe Zone' ? 3 : 0 };
+                    return {
+                        ...state,
+                        activeBonus: action.bonus,
+                        safeZoneRolls: action.bonus === 'Safe Zone' ? 3 : 0,
+                        safeZoneMultiplier: action.bonus === 'Safe Zone' ? state.multiplier : null
+                    };
                 case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0 };
+                    return { ...state, activeBonus: null, safeZoneRolls: 0, safeZoneMultiplier: null };
                 case 'UPDATE_HIGH_SCORE':
                     return { ...state, highScore: action.highScore };
                 case 'RESTART_GAME':
@@ -197,6 +208,7 @@
             gameState: 'ready',
             prediction: null,
             safeZoneRolls: 0,
+            safeZoneMultiplier: null,
             rollCount: 0,
             lastRollResult: null,
             recentRolls: [],
@@ -206,8 +218,9 @@
 
         function DiceProphet() {
             const [state, dispatch] = React.useReducer(gameReducer, initialState);
-            const { timeLeft, startTimer, stopTimer, addTime } = useGameTimer(60);
+            const { timeLeft, startTimer, stopTimer, addTime, freezeTimer } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
+            const [countdown, setCountdown] = React.useState(3);
 
             React.useEffect(() => {
                 tg.ready();
@@ -237,7 +250,7 @@
                 tg.MainButton.onClick(() => {
                     if (state.gameState === 'ready') {
                         dispatch({ type: 'START_GAME' });
-                        startTimer();
+                        setCountdown(3);
                         tg.MainButton.hide();
                     }
                 });
@@ -248,6 +261,15 @@
                     stopTimer();
                 };
             }, []);
+
+            React.useEffect(() => {
+                if (state.gameState === 'playing' && countdown > 0) {
+                    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+                    return () => clearTimeout(timer);
+                } else if (countdown === 0) {
+                    startTimer();
+                }
+            }, [state.gameState, countdown, startTimer]);
 
             React.useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
@@ -279,18 +301,16 @@
                         isCorrect = true;
                         const pointsEarned = 100 * state.multiplier;
                         newScore += pointsEarned;
-                        newMultiplier += 0.1;
+                        newMultiplier += 1;
                         newStreak += 1;
                         playCorrect();
                         tg.HapticFeedback.notificationOccurred('success');
-                    } else if (sum === 7) {
-                        if (state.activeBonus !== 'Safe Zone') {
-                            newScore = 0;
-                            newMultiplier = 1;
-                            newStreak = 0;
-                            playIncorrect();
-                            tg.HapticFeedback.notificationOccurred('error');
-                        }
+                    } else if (sum === 7 && state.activeBonus !== 'Safe Zone') {
+                        newScore = 0;
+                        newMultiplier = 1;
+                        newStreak = 0;
+                        playIncorrect();
+                        tg.HapticFeedback.notificationOccurred('error');
                     } else {
                         if (state.activeBonus !== 'Safe Zone') {
                             newMultiplier = 1;
@@ -298,6 +318,15 @@
                         }
                         playIncorrect();
                         tg.HapticFeedback.notificationOccurred('warning');
+                    }
+
+                    if (state.activeBonus === 'Safe Zone') {
+                        newMultiplier = state.safeZoneMultiplier;
+                        if (state.safeZoneRolls <= 1) {
+                            dispatch({ type: 'DEACTIVATE_BONUS' });
+                        } else {
+                            dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone', safeZoneRolls: state.safeZoneRolls - 1 });
+                        }
                     }
 
                     dispatch({
@@ -308,15 +337,7 @@
                         streak: newStreak,
                     });
 
-                    if (state.activeBonus === 'Safe Zone') {
-                        if (state.safeZoneRolls <= 1) {
-                            dispatch({ type: 'DEACTIVATE_BONUS' });
-                        } else {
-                            dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone', safeZoneRolls: state.safeZoneRolls - 1 });
-                        }
-                    }
-
-                    // New bonus logic
+// Bonus logic
                     if (state.rollCount % 5 === 0 && !state.activeBonus && Math.random() < 0.5) {
                         const bonusRoll = Math.random();
                         if (bonusRoll < 0.4) {
@@ -324,13 +345,13 @@
                             playBonus();
                         } else if (bonusRoll < 0.8) {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
-                            addTime(5);
+                            freezeTimer();
                             playBonus();
                         }
                         // 20% chance of no bonus
                     }
                 }, 500);
-            }, [state, rollDice, playCorrect, playIncorrect, playBonus, addTime]);
+            }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer]);
 
             const handleAllIn = React.useCallback(async (pred) => {
                 rollDice();
@@ -346,7 +367,7 @@
                         playIncorrect();
                         tg.HapticFeedback.notificationOccurred('error');
                     }
-dispatch({
+                    dispatch({
                         type: 'UPDATE_SCORE',
                         newScore: newScore,
                         change: newScore - state.score,
@@ -377,11 +398,11 @@ dispatch({
                     tg.MainButton.show();
                     tg.MainButton.onClick(() => {
                         dispatch({ type: 'RESTART_GAME' });
-                        startTimer();
+                        setCountdown(3);
                         tg.MainButton.hide();
                     });
                 }
-            }, [state.gameState, state.score, state.highScore, startTimer]);
+            }, [state.gameState, state.score, state.highScore]);
 
             const Tutorial = React.memo(() => (
                 <div className="text-center mb-6">
@@ -404,6 +425,14 @@ dispatch({
                             </div>
                         );
                     case 'playing':
+                        if (countdown > 0) {
+                            return (
+                                <div className="text-center">
+                                    <div className="text-6xl font-bold mb-4">{countdown}</div>
+                                    <p className="text-xl">Get ready to predict!</p>
+                                </div>
+                            );
+                        }
                         return (
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-4">
@@ -432,7 +461,7 @@ dispatch({
                                         </div>
                                     ))}
                                 </div>
-                                <div className="flex justify-center space-x-4 mb-6">
+                                <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
                                     <button
                                         aria-label="Predict less than 7"
                                         className={`px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
@@ -460,7 +489,7 @@ dispatch({
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-6">Time's up! Final Score: {Math.floor(state.score)}</div>
                                 <div className="text-xl mb-6">Do you want to go All-In?</div>
-                                <div className="flex justify-center space-x-6">
+                                <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-6">
                                     <button
                                         aria-label="All-In: Less than 7"
                                         className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 pulse"
