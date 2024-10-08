@@ -18,6 +18,14 @@
         .dice-roll {
             animation: roll 0.5s ease-out;
         }
+        .dice-shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
         .bonus-appear {
             animation: fadeIn 0.5s ease-out;
         }
@@ -48,6 +56,25 @@
         @keyframes slideIn {
             from { transform: translateY(-20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+        }
+        .feedback {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            animation: fadeOutOverlay 0.5s forwards;
+            z-index: 50;
+        }
+        .feedback.success {
+            background-color: rgba(0, 255, 0, 0.3);
+        }
+        .feedback.failure {
+            background-color: rgba(255, 0, 0, 0.3);
+        }
+        @keyframes fadeOutOverlay {
+            to { opacity: 0; }
         }
     </style>
 </head>
@@ -174,7 +201,7 @@
         // Memoized components
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div 
-                className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}
+                className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll dice-shake' : ''}`}
                 aria-label={`Dice showing ${value}`}
                 role="img"
             >
@@ -294,13 +321,13 @@
                 </div>
             );
         };
-		
+        
         const initialState = {
             dice1: 1,
             dice2: 1,
             score: 0,
             highScore: 0,
-			multiplier: 1,
+            multiplier: 1,
             activeBonus: null,
             gameState: 'ready',
             safeZoneRolls: 0,
@@ -316,6 +343,7 @@
             const { timeLeft, startTimer, stopTimer, addTime, freezeTimer, isFrozen } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
             const [showTutorial, setShowTutorial] = useState(true);
+            const [feedback, setFeedback] = useState(null);
 
             useEffect(() => {
                 tg.ready();
@@ -379,20 +407,24 @@
                     newMultiplier = Math.min(newMultiplier + 1, 15);
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
+                    setFeedback('success');
                 } else {
                     if (state.activeBonus === 'Safe Zone') {
                         // Safe Zone active: No penalties applied
                         playIncorrect();
                         tg.HapticFeedback.notificationOccurred('warning');
+                        setFeedback('failure');
                     } else {
                         if (sum === 7) {
                             newScore = Math.floor(newScore * 0.5); // 50% score reduction
                             playIncorrect();
                             tg.HapticFeedback.notificationOccurred('error');
+                            setFeedback('failure');
                         } else {
                             newMultiplier = 1;
                             playIncorrect();
                             tg.HapticFeedback.notificationOccurred('warning');
+                            setFeedback('failure');
                         }
                     }
                 }
@@ -434,10 +466,12 @@
                     newScore *= 2;
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
+                    setFeedback('success');
                 } else {
                     newScore = Math.floor(newScore * 0.3);
                     playIncorrect();
                     tg.HapticFeedback.notificationOccurred('error');
+                    setFeedback('failure');
                 }
                 dispatch({
                     type: 'UPDATE_SCORE',
@@ -447,6 +481,13 @@
                 });
                 dispatch({ type: 'GAME_OVER' });
             }, [state, rollDice, playCorrect, playIncorrect]);
+
+            useEffect(() => {
+                if (feedback) {
+                    const timer = setTimeout(() => setFeedback(null), 500);
+                    return () => clearTimeout(timer);
+                }
+            }, [feedback]);
 
             useEffect(() => {
                 if (state.gameState === 'gameOver') {
@@ -484,7 +525,7 @@
                             <div className="text-center">
                                 <button 
                                     onClick={startGame}
-                                    className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 text-xl font-bold"
+                                    className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200 text-xl font-bold"
                                 >
                                     Start Game
                                 </button>
@@ -558,7 +599,7 @@
                                 <div className="text-2xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
                                 <button 
                                     onClick={startGame}
-                                    className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 text-xl font-bold"
+                                    className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200 text-xl font-bold"
                                 >
                                     Play Again
                                 </button>
@@ -571,9 +612,11 @@
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
-                    <h1 className="text-4xl font-bold mb-6 text-blue-600 dark:text-blue-400">Dice Prophet</h1>
+                    <h1 className="text-4xl font-bold mb-6 text-indigo-600 dark:text-indigo-400">Dice Prophet</h1>
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent}
+                    {feedback === 'success' && <div className="feedback success"></div>}
+                    {feedback === 'failure' && <div className="feedback failure"></div>}
                 </div>
             );
         }
