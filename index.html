@@ -90,16 +90,21 @@
         const useGameTimer = (initialTime) => {
             const [timeLeft, setTimeLeft] = useState(initialTime);
             const [isFrozen, setIsFrozen] = useState(false);
+            const isFrozenRef = useRef(isFrozen);
             const timerRef = useRef(null);
+
+            useEffect(() => {
+                isFrozenRef.current = isFrozen;
+            }, [isFrozen]);
 
             const startTimer = useCallback(() => {
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerRef.current = setInterval(() => {
-                    if (!isFrozen) {
+                    if (!isFrozenRef.current) {
                         setTimeLeft((prevTime) => Math.max(prevTime - 1, 0));
                     }
                 }, 1000);
-            }, [isFrozen]);
+            }, []);
 
             const stopTimer = useCallback(() => {
                 clearInterval(timerRef.current);
@@ -286,16 +291,16 @@
                             )}
                         </div>
                     </div>
-</div>
+                </div>
             );
         };
 		
-		const initialState = {
+        const initialState = {
             dice1: 1,
             dice2: 1,
             score: 0,
             highScore: 0,
-            multiplier: 1,
+			multiplier: 1,
             activeBonus: null,
             gameState: 'ready',
             safeZoneRolls: 0,
@@ -364,27 +369,32 @@
             const handlePrediction = useCallback(async (pred) => {
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
-                let isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
+                const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
                 let newScore = state.score;
                 let newMultiplier = state.multiplier;
                 
                 if (isCorrect) {
-                    const basePoints = 150 * newMultiplier; // Increased base points for better balance
+                    const basePoints = 150 * newMultiplier;
                     newScore += basePoints;
-                    newMultiplier = Math.min(newMultiplier + 1, 15); // Increased multiplier cap to 15x
+                    newMultiplier = Math.min(newMultiplier + 1, 15);
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
-                } else if (sum === 7 && state.activeBonus !== 'Safe Zone') {
-                    newScore = Math.floor(newScore * 0.6); // Reduced penalty to 40% score reduction
-                    newMultiplier = 1;
-                    playIncorrect();
-                    tg.HapticFeedback.notificationOccurred('error');
                 } else {
-                    if (state.activeBonus !== 'Safe Zone') {
-                        newMultiplier = Math.max(1, newMultiplier - 1); // Gradual multiplier reduction
+                    if (state.activeBonus === 'Safe Zone') {
+                        // Safe Zone active: No penalties applied
+                        playIncorrect();
+                        tg.HapticFeedback.notificationOccurred('warning');
+                    } else {
+                        if (sum === 7) {
+                            newScore = Math.floor(newScore * 0.5); // 50% score reduction
+                            playIncorrect();
+                            tg.HapticFeedback.notificationOccurred('error');
+                        } else {
+                            newMultiplier = 1;
+                            playIncorrect();
+                            tg.HapticFeedback.notificationOccurred('warning');
+                        }
                     }
-                    playIncorrect();
-                    tg.HapticFeedback.notificationOccurred('warning');
                 }
 
                 if (state.activeBonus === 'Safe Zone') {
@@ -401,8 +411,8 @@
                     multiplier: newMultiplier,
                 });
 
-                // Improved bonus logic
-                if (state.rollCount % 4 === 3 && !state.activeBonus) { // Increased bonus frequency
+                // Bonus activation logic
+                if (state.rollCount % 4 === 3 && !state.activeBonus) {
                     const bonusRoll = Math.random();
                     if (bonusRoll < 0.4) {
                         dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
@@ -410,10 +420,8 @@
                     } else if (bonusRoll < 0.8) {
                         dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
                         freezeTimer();
-                        addTime(7); // Increased time bonus
+                        addTime(7);
                         playBonus();
-                    } else {
-                        // 20% chance of no bonus
                     }
                 }
             }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer, addTime]);
@@ -427,7 +435,7 @@
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
                 } else {
-                    newScore = Math.floor(newScore * 0.3); // Increased risk: lose 70% of the score
+                    newScore = Math.floor(newScore * 0.3);
                     playIncorrect();
                     tg.HapticFeedback.notificationOccurred('error');
                 }
@@ -488,7 +496,7 @@
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-4">
                                     <i className="far fa-clock mr-2" aria-hidden="true"></i>{timeLeft}s
-                                    {isFrozen && <span className="ml-2 text-blue-500">(Frozen)</span>}
+                                    {isFrozen && <span className="ml-2 text-blue-500" role="img" aria-label="Frozen">❄️</span>}
                                 </div>
                                 <ScoreDisplay 
                                     score={state.score} 
