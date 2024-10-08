@@ -35,10 +35,10 @@
         }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.1); }
         }
         .pulse {
-            animation: pulse 0.5s ease-in-out;
+            animation: pulse 0.5s ease-in-out infinite;
         }
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
@@ -201,7 +201,7 @@
         // Memoized components
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div 
-                className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll dice-shake' : ''}`}
+                className={`w-24 h-24 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-5xl font-bold shadow-lg ${rolling ? 'dice-roll dice-shake' : ''}`}
                 aria-label={`Dice showing ${value}`}
                 role="img"
             >
@@ -211,7 +211,7 @@
 
         const BonusDisplay = React.memo(({ bonus, safeZoneRolls }) => (
             <div className="mb-4 scale-in">
-                <div className="px-3 py-2 bg-purple-500 text-white rounded-full flex items-center justify-center bonus-appear">
+                <div className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full flex items-center justify-center bonus-appear shadow-md">
                     <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`} aria-hidden="true"></i>
                     {bonus}
                     {bonus === 'Safe Zone' && ` (${safeZoneRolls} rolls left)`}
@@ -221,18 +221,18 @@
 
         const ScoreDisplay = React.memo(({ score, multiplier, scoreChange, highScore }) => (
             <div className="text-center">
-                <div className="text-3xl mb-2">
-                    Score: <span className="text-green-500 font-bold">{Math.floor(score)}</span>
+                <div className="text-4xl mb-2 font-extrabold">
+                    Score: <span className="text-green-500">{Math.floor(score)}</span>
                     {scoreChange !== 0 && (
                         <span className={`ml-2 ${scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
                             {scoreChange > 0 ? '+' : ''}{Math.floor(scoreChange)}
                         </span>
                     )}
                 </div>
-                <div className="text-xl mb-2">
+                <div className="text-2xl mb-2">
                     Multiplier: <span className="text-blue-500 font-bold">×{multiplier}</span>
                 </div>
-                <div className="text-lg">
+                <div className="text-xl">
                     High Score: <span className="text-purple-500 font-bold">{Math.floor(highScore)}</span>
                 </div>
             </div>
@@ -243,7 +243,7 @@
             const touchStartX = useRef(0);
             const slides = [
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">Welcome to Dice Prophet!</h2>
+                    <h2 className="text-3xl font-bold mb-4">Welcome to Dice Prophet!</h2>
                     <p className="mb-4">Predict the future, master the dice, and become a legend!</p>
                     <div className="text-left">
                         <p className="mb-2"><i className="fas fa-dice text-blue-500 mr-2"></i> Guess if the sum will be less or more than 7</p>
@@ -252,15 +252,15 @@
                     </div>
                 </div>,
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">Power-Ups and Bonuses</h2>
+                    <h2 className="text-3xl font-bold mb-4">Power-Ups and Bonuses</h2>
                     <div className="text-left">
-                        <p className="mb-2"><i className="fas fa-shield-alt text-purple-500 mr-2"></i> Safe Zone: Protects you from losing your streak</p>
+                        <p className="mb-2"><i className="fas fa-shield-alt text-purple-500 mr-2"></i> Safe Zone: Protects you from losing your score</p>
                         <p className="mb-2"><i className="fas fa-clock text-blue-500 mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
                         <p><i className="fas fa-gift text-pink-500 mr-2"></i> Look out for surprise bonuses to boost your score!</p>
                     </div>
                 </div>,
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">All or Nothing!</h2>
+                    <h2 className="text-3xl font-bold mb-4">All or Nothing!</h2>
                     <p className="mb-4">When time runs out, you have one last chance to double your score!</p>
                     <div className="text-left">
                         <p className="mb-2"><i className="fas fa-trophy text-yellow-500 mr-2"></i> Go all-in for a shot at glory</p>
@@ -304,14 +304,14 @@
                             {currentSlide === slides.length - 1 ? (
                                 <button 
                                     onClick={onComplete}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200"
+                                    className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200"
                                 >
                                     Start Game
                                 </button>
                             ) : (
                                 <button 
                                     onClick={() => setCurrentSlide(prev => prev + 1)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200"
+                                    className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200"
                                 >
                                     Next
                                 </button>
@@ -416,7 +416,7 @@
                         setFeedback('failure');
                     } else {
                         if (sum === 7) {
-                            newScore = Math.floor(newScore * 0.5); // 50% score reduction
+                            newScore = 0; // Reset score
                             playIncorrect();
                             tg.HapticFeedback.notificationOccurred('error');
                             setFeedback('failure');
@@ -468,7 +468,7 @@
                     tg.HapticFeedback.notificationOccurred('success');
                     setFeedback('success');
                 } else {
-                    newScore = Math.floor(newScore * 0.3);
+                    newScore = 0; // Lose all score
                     playIncorrect();
                     tg.HapticFeedback.notificationOccurred('error');
                     setFeedback('failure');
@@ -525,7 +525,7 @@
                             <div className="text-center">
                                 <button 
                                     onClick={startGame}
-                                    className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200 text-xl font-bold"
+                                    className="px-6 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200 text-xl font-bold pulse"
                                 >
                                     Start Game
                                 </button>
@@ -535,7 +535,7 @@
                     case 'allIn':
                         return (
                             <div className="text-center">
-                                <div className="text-3xl font-bold mb-4">
+                                <div className="text-4xl font-bold mb-4">
                                     <i className="far fa-clock mr-2" aria-hidden="true"></i>{timeLeft}s
                                     {isFrozen && <span className="ml-2 text-blue-500" role="img" aria-label="Frozen">❄️</span>}
                                 </div>
@@ -550,7 +550,7 @@
                                     <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                                 </div>
                                 {state.lastRollResult && (
-                                    <div className={`text-2xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
+                                    <div className={`text-3xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
                                         Last Roll: {state.lastRollResult}
                                     </div>
                                 )}
@@ -564,7 +564,7 @@
                                 <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                                     <button
                                         aria-label={state.gameState === 'allIn' ? "All-In: Less than 7" : "Predict less than 7"}
-                                        className={`w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        className={`w-full sm:w-auto px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                         onClick={() => state.gameState === 'allIn' ? handleAllIn('less') : handlePrediction('less')}
                                         disabled={state.isRolling}
                                     >
@@ -573,7 +573,7 @@
                                     </button>
                                     <button
                                         aria-label={state.gameState === 'allIn' ? "All-In: More than 7" : "Predict more than 7"}
-                                        className={`w-full sm:w-auto px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
+                                        className={`w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
                                         onClick={() => state.gameState === 'allIn' ? handleAllIn('more') : handlePrediction('more')}
                                         disabled={state.isRolling}
                                     >
@@ -585,8 +585,8 @@
                                     <BonusDisplay bonus={state.activeBonus} safeZoneRolls={state.safeZoneRolls} />
                                 )}
                                 {state.gameState === 'allIn' && (
-                                    <div className="text-xl font-bold text-yellow-500 mb-4">
-                                        All-In Round! Double or lose 70% of your score!
+                                    <div className="text-2xl font-bold text-yellow-500 mb-4">
+                                        All-In Round! Double or lose all your score!
                                     </div>
                                 )}
                             </div>
@@ -594,12 +594,12 @@
                     case 'gameOver':
                         return (
                             <div className="text-center">
-                                <div className="text-4xl font-bold mb-6 fade-in">Game Over!</div>
-                                <div className="text-3xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
-                                <div className="text-2xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
+                                <div className="text-5xl font-bold mb-6 fade-in">Game Over!</div>
+                                <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
+                                <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
                                 <button 
                                     onClick={startGame}
-                                    className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200 text-xl font-bold"
+                                    className="px-6 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200 text-xl font-bold pulse"
                                 >
                                     Play Again
                                 </button>
@@ -611,8 +611,8 @@
             }, [state, timeLeft, isFrozen, startGame, handleAllIn, handlePrediction]);
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
-                    <h1 className="text-4xl font-bold mb-6 text-indigo-600 dark:text-indigo-400">Dice Prophet</h1>
+                <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-4">
+                    <h1 className="text-5xl font-extrabold mb-6 text-yellow-400">🎲 Dice Prophet 🎲</h1>
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent}
                     {feedback === 'success' && <div className="feedback success"></div>}
