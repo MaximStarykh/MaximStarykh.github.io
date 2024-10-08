@@ -3,85 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dice Prophet</title>
+    <title>Retro Dice Prophet</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <style>
-        @keyframes roll {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @font-face {
+            font-family: 'PressStart2P';
+            src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivNm4I81.woff2') format('woff2');
         }
-        .dice-roll {
-            animation: roll 0.5s ease-out;
+        body {
+            font-family: 'PressStart2P', cursive;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
-        .dice-shake {
-            animation: shake 0.5s;
+        #root {
+            max-width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .pixel-art {
+            image-rendering: pixelated;
+        }
+        .blink {
+            animation: blink 1s steps(2, start) infinite;
+        }
+        @keyframes blink {
+            to {
+                visibility: hidden;
+            }
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-10px); }
-            40%, 80% { transform: translateX(10px); }
-        }
-        .bonus-appear {
-            animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        .pulse {
-            animation: pulse 0.5s ease-in-out infinite;
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        .scale-in {
-            animation: scaleIn 0.3s ease-in-out;
-        }
-        @keyframes scaleIn {
-            from { transform: scale(0); }
-            to { transform: scale(1); }
-        }
-        .slide-in {
-            animation: slideIn 0.3s ease-in-out;
-        }
-        @keyframes slideIn {
-            from { transform: translateY(-20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        .feedback {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            animation: fadeOutOverlay 0.5s forwards;
-            z-index: 50;
-        }
-        .feedback.success {
-            background-color: rgba(0, 255, 0, 0.3);
-        }
-        .feedback.failure {
-            background-color: rgba(255, 0, 0, 0.3);
-        }
-        @keyframes fadeOutOverlay {
-            to { opacity: 0; }
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useMemo, useReducer, useRef } = React;
+        const { useState, useEffect, useCallback, useReducer } = React;
         const tg = window.Telegram.WebApp;
 
         // Sound effects
@@ -92,65 +65,34 @@
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 
-                oscillator.type = 'sine';
+                oscillator.type = 'square';
                 oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
                 
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
-                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration - 0.01);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
                 
                 oscillator.start();
                 oscillator.stop(audioContext.currentTime + duration);
             };
 
             return {
-                playDiceRoll: useCallback(() => playSound(300, 0.3), []),
-                playCorrect: useCallback(() => playSound(440, 0.2), []),
-                playIncorrect: useCallback(() => playSound(220, 0.2), []),
-                playBonus: useCallback(() => playSound(660, 0.3), [])
+                playRoll: () => playSound(330, 0.1),
+                playCorrect: () => {
+                    playSound(660, 0.1);
+                    setTimeout(() => playSound(880, 0.1), 100);
+                },
+                playIncorrect: () => {
+                    playSound(220, 0.1);
+                    setTimeout(() => playSound(165, 0.1), 100);
+                },
+                playBonus: () => {
+                    playSound(440, 0.05);
+                    setTimeout(() => playSound(880, 0.05), 50);
+                    setTimeout(() => playSound(1320, 0.05), 100);
+                }
             };
-        };
-
-        // Game timer hook
-        const useGameTimer = (initialTime) => {
-            const [timeLeft, setTimeLeft] = useState(initialTime);
-            const [isFrozen, setIsFrozen] = useState(false);
-            const isFrozenRef = useRef(isFrozen);
-            const timerRef = useRef(null);
-
-            useEffect(() => {
-                isFrozenRef.current = isFrozen;
-            }, [isFrozen]);
-
-            const startTimer = useCallback(() => {
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => {
-                    if (!isFrozenRef.current) {
-                        setTimeLeft((prevTime) => Math.max(prevTime - 1, 0));
-                    }
-                }, 1000);
-            }, []);
-
-            const stopTimer = useCallback(() => {
-                clearInterval(timerRef.current);
-            }, []);
-
-            const addTime = useCallback((seconds) => {
-                setTimeLeft(prevTime => prevTime + seconds);
-            }, []);
-
-            const freezeTimer = useCallback(() => {
-                setIsFrozen(true);
-                setTimeout(() => setIsFrozen(false), 5000);
-            }, []);
-
-            useEffect(() => {
-                return () => clearInterval(timerRef.current);
-            }, []);
-
-            return { timeLeft, startTimer, stopTimer, addTime, freezeTimer, isFrozen };
         };
 
         // Game reducer
@@ -158,198 +100,73 @@
             switch (action.type) {
                 case 'START_GAME':
                     return { ...initialState, gameState: 'playing', highScore: state.highScore };
-                case 'END_GAME':
-                    return { ...state, gameState: 'allIn' };
-                case 'GAME_OVER':
-                    return { ...state, gameState: 'gameOver' };
                 case 'ROLL_DICE':
                     return {
                         ...state,
                         dice1: action.dice1,
                         dice2: action.dice2,
-                        lastRollResult: action.dice1 + action.dice2,
-                        recentRolls: [action.dice1 + action.dice2, ...state.recentRolls.slice(0, 4)],
-                        rollCount: state.rollCount + 1,
+                        lastRollSum: action.dice1 + action.dice2,
                         isRolling: false,
                     };
                 case 'UPDATE_SCORE':
                     return {
                         ...state,
                         score: action.newScore,
-                        scoreChange: action.change,
-                        multiplier: action.multiplier,
+                        streak: action.newStreak,
+                        doublePointsRolls: Math.max(0, state.doublePointsRolls - 1),
                     };
-                case 'ACTIVATE_BONUS':
-                    return {
-                        ...state,
-                        activeBonus: action.bonus,
-                        safeZoneRolls: action.bonus === 'Safe Zone' ? 3 : state.safeZoneRolls,
-                    };
-                case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0 };
+                case 'ACTIVATE_DOUBLE_POINTS':
+                    return { ...state, doublePointsRolls: 3 };
+                case 'USE_SECOND_CHANCE':
+                    return { ...state, secondChanceUsed: true };
                 case 'UPDATE_HIGH_SCORE':
                     return { ...state, highScore: action.highScore };
-                case 'SET_ROLLING':
-                    return { ...state, isRolling: action.isRolling };
-                case 'DECREASE_SAFE_ZONE':
-                    return { ...state, safeZoneRolls: state.safeZoneRolls - 1 };
+                case 'GAME_OVER':
+                    return { ...state, gameState: 'gameOver' };
                 default:
                     return state;
             }
         };
 
-        // Memoized components
-        const DiceDisplay = React.memo(({ value, rolling }) => (
-            <div 
-                className={`w-24 h-24 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-5xl font-bold shadow-lg ${rolling ? 'dice-roll dice-shake' : ''}`}
-                aria-label={`Dice showing ${value}`}
-                role="img"
-            >
-                {value}
-            </div>
-        ));
-
-        const BonusDisplay = React.memo(({ bonus, safeZoneRolls }) => (
-            <div className="mb-4 scale-in">
-                <div className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full flex items-center justify-center bonus-appear shadow-md">
-                    <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`} aria-hidden="true"></i>
-                    {bonus}
-                    {bonus === 'Safe Zone' && ` (${safeZoneRolls} rolls left)`}
-                </div>
-            </div>
-        ));
-
-        const ScoreDisplay = React.memo(({ score, multiplier, scoreChange, highScore }) => (
-            <div className="text-center">
-                <div className="text-4xl mb-2 font-extrabold">
-                    Score: <span className="text-green-500">{Math.floor(score)}</span>
-                    {scoreChange !== 0 && (
-                        <span className={`ml-2 ${scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
-                            {scoreChange > 0 ? '+' : ''}{Math.floor(scoreChange)}
-                        </span>
-                    )}
-                </div>
-                <div className="text-2xl mb-2">
-                    Multiplier: <span className="text-blue-500 font-bold">×{multiplier}</span>
-                </div>
-                <div className="text-xl">
-                    High Score: <span className="text-purple-500 font-bold">{Math.floor(highScore)}</span>
-                </div>
-            </div>
-        ));
-
-        const Tutorial = ({ onComplete }) => {
-            const [currentSlide, setCurrentSlide] = useState(0);
-            const touchStartX = useRef(0);
-            const slides = [
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4">Welcome to Dice Prophet!</h2>
-                    <p className="mb-4">Predict the future, master the dice, and become a legend!</p>
-                    <div className="text-left">
-                        <p className="mb-2"><i className="fas fa-dice text-blue-500 mr-2"></i> Guess if the sum will be less or more than 7</p>
-                        <p className="mb-2"><i className="fas fa-chart-line text-green-500 mr-2"></i> Build your multiplier for bigger scores</p>
-                        <p><i className="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> But beware of the dreaded 7!</p>
-                    </div>
-                </div>,
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4">Power-Ups and Bonuses</h2>
-                    <div className="text-left">
-                        <p className="mb-2"><i className="fas fa-shield-alt text-purple-500 mr-2"></i> Safe Zone: Protects you from losing your score</p>
-                        <p className="mb-2"><i className="fas fa-clock text-blue-500 mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
-                        <p><i className="fas fa-gift text-pink-500 mr-2"></i> Look out for surprise bonuses to boost your score!</p>
-                    </div>
-                </div>,
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4">All or Nothing!</h2>
-                    <p className="mb-4">When time runs out, you have one last chance to double your score!</p>
-                    <div className="text-left">
-                        <p className="mb-2"><i className="fas fa-trophy text-yellow-500 mr-2"></i> Go all-in for a shot at glory</p>
-                        <p className="mb-2"><i className="fas fa-skull-crossbones text-red-500 mr-2"></i> But be careful, you could lose it all!</p>
-                        <p><i className="fas fa-star text-purple-500 mr-2"></i> Do you have what it takes to be a Dice Prophet?</p>
-                    </div>
-                </div>
-            ];
-
-            const handleSwipe = useCallback((direction) => {
-                if (direction === 'left' && currentSlide < slides.length - 1) {
-                    setCurrentSlide(prev => prev + 1);
-                } else if (direction === 'right' && currentSlide > 0) {
-                    setCurrentSlide(prev => prev - 1);
-                }
-            }, [currentSlide, slides.length]);
-
-            return (
-                <div className="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50">
-                    <div 
-                        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm mx-auto relative"
-                        onTouchStart={(e) => touchStartX.current = e.touches[0].clientX}
-                        onTouchEnd={(e) => {
-                            const touchEndX = e.changedTouches[0].clientX;
-                            const diff = touchStartX.current - touchEndX;
-                            if (Math.abs(diff) > 50) {
-                                handleSwipe(diff > 0 ? 'left' : 'right');
-                            }
-                        }}
-                    >
-                        {slides[currentSlide]}
-                        <div className="mt-6 flex justify-between items-center">
-                            <div className="flex space-x-2">
-                                {slides.map((_, index) => (
-                                    <div 
-                                        key={index} 
-                                        className={`w-2 h-2 rounded-full ${index === currentSlide ? 'bg-blue-500' : 'bg-gray-300'}`}
-                                    ></div>
-                                ))}
-                            </div>
-                            {currentSlide === slides.length - 1 ? (
-                                <button 
-                                    onClick={onComplete}
-                                    className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200"
-                                >
-                                    Start Game
-                                </button>
-                            ) : (
-                                <button 
-                                    onClick={() => setCurrentSlide(prev => prev + 1)}
-                                    className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200"
-                                >
-                                    Next
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-        
         const initialState = {
             dice1: 1,
             dice2: 1,
             score: 0,
             highScore: 0,
-            multiplier: 1,
-            activeBonus: null,
+            streak: 0,
+            doublePointsRolls: 0,
+            secondChanceUsed: false,
             gameState: 'ready',
-            safeZoneRolls: 0,
-            rollCount: 0,
-            lastRollResult: null,
-            recentRolls: [],
-            scoreChange: 0,
+            lastRollSum: null,
             isRolling: false,
         };
 
+        const Dice = ({ value }) => (
+            <div className="pixel-art" style={{
+                width: '64px',
+                height: '64px',
+                backgroundColor: '#fff',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontSize: '40px',
+                color: '#000',
+                border: '4px solid #000',
+                margin: '0 8px',
+            }}>
+                {value}
+            </div>
+        );
+
         function DiceProphet() {
             const [state, dispatch] = useReducer(gameReducer, initialState);
-            const { timeLeft, startTimer, stopTimer, addTime, freezeTimer, isFrozen } = useGameTimer(60);
-            const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
-            const [showTutorial, setShowTutorial] = useState(true);
-            const [feedback, setFeedback] = useState(null);
+            const { playRoll, playCorrect, playIncorrect, playBonus } = useSound();
+            const [prediction, setPrediction] = useState(null);
 
             useEffect(() => {
                 tg.ready();
                 tg.expand();
-                document.body.className = tg.colorScheme;
-                
+
                 const fetchHighScore = async () => {
                     try {
                         const value = await new Promise((resolve, reject) => {
@@ -368,22 +185,10 @@
                 };
 
                 fetchHighScore();
-
-                return () => {
-                    stopTimer();
-                };
-            }, [stopTimer]);
-
-            useEffect(() => {
-                if (timeLeft === 0 && state.gameState === 'playing') {
-                    dispatch({ type: 'END_GAME' });
-                }
-            }, [timeLeft, state.gameState]);
+            }, []);
 
             const rollDice = useCallback(() => {
-                dispatch({ type: 'SET_ROLLING', isRolling: true });
-                playDiceRoll();
-                tg.HapticFeedback.impactOccurred('medium');
+                playRoll();
                 return new Promise(resolve => {
                     setTimeout(() => {
                         const newDice1 = Math.floor(Math.random() * 6) + 1;
@@ -392,111 +197,54 @@
                         resolve({ dice1: newDice1, dice2: newDice2 });
                     }, 500);
                 });
-            }, [playDiceRoll]);
+            }, [playRoll]);
 
             const handlePrediction = useCallback(async (pred) => {
+                setPrediction(pred);
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
-                const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
-                let newScore = state.score;
-                let newMultiplier = state.multiplier;
-                
-                if (isCorrect) {
-                    const basePoints = 150 * newMultiplier;
-                    newScore += basePoints;
-                    newMultiplier = Math.min(newMultiplier + 1, 15);
-                    playCorrect();
-                    tg.HapticFeedback.notificationOccurred('success');
-                    setFeedback('success');
-                } else {
-                    if (state.activeBonus === 'Safe Zone') {
-                        // Safe Zone active: No penalties applied
-                        playIncorrect();
-                        tg.HapticFeedback.notificationOccurred('warning');
-                        setFeedback('failure');
+                let isCorrect = false;
+                let pointsEarned = 0;
+                let newStreak = 0;
+
+                if ((pred === 'less' && sum < 7) || (pred === 'equal' && sum === 7) || (pred === 'more' && sum > 7)) {
+                    isCorrect = true;
+                    newStreak = state.streak + 1;
+                    if (pred === 'equal') {
+                        pointsEarned = 50;
+                        dispatch({ type: 'ACTIVATE_DOUBLE_POINTS' });
+                        playBonus();
                     } else {
-                        if (sum === 7) {
-                            newScore = 0; // Reset score
-                            playIncorrect();
-                            tg.HapticFeedback.notificationOccurred('error');
-                            setFeedback('failure');
-                        } else {
-                            newMultiplier = 1;
-                            playIncorrect();
-                            tg.HapticFeedback.notificationOccurred('warning');
-                            setFeedback('failure');
-                        }
+                        pointsEarned = 10 * (newStreak);
                     }
-                }
-
-                if (state.activeBonus === 'Safe Zone') {
-                    dispatch({ type: 'DECREASE_SAFE_ZONE' });
-                    if (state.safeZoneRolls <= 1) {
-                        dispatch({ type: 'DEACTIVATE_BONUS' });
+                    if (state.doublePointsRolls > 0) {
+                        pointsEarned *= 2;
                     }
-                }
-
-                dispatch({
-                    type: 'UPDATE_SCORE',
-                    newScore: newScore,
-                    change: newScore - state.score,
-                    multiplier: newMultiplier,
-                });
-
-                // Bonus activation logic
-                if (state.rollCount % 4 === 3 && !state.activeBonus) {
-                    const bonusRoll = Math.random();
-                    if (bonusRoll < 0.4) {
-                        dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
-                        playBonus();
-                    } else if (bonusRoll < 0.8) {
-                        dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
-                        freezeTimer();
-                        addTime(7);
-                        playBonus();
-                    }
-                }
-            }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer, addTime]);
-
-            const handleAllIn = useCallback(async (pred) => {
-                const { dice1, dice2 } = await rollDice();
-                const sum = dice1 + dice2;
-                let newScore = state.score;
-                if ((pred === 'less' && sum < 7) || (pred === 'more' && sum > 7)) {
-                    newScore *= 2;
                     playCorrect();
-                    tg.HapticFeedback.notificationOccurred('success');
-                    setFeedback('success');
                 } else {
-                    newScore = 0; // Lose all score
-                    playIncorrect();
-                    tg.HapticFeedback.notificationOccurred('error');
-                    setFeedback('failure');
-                }
-                dispatch({
-                    type: 'UPDATE_SCORE',
-                    newScore: newScore,
-                    change: newScore - state.score,
-                    multiplier: 1,
-                });
-                dispatch({ type: 'GAME_OVER' });
-            }, [state, rollDice, playCorrect, playIncorrect]);
-
-            useEffect(() => {
-                if (feedback) {
-                    const timer = setTimeout(() => setFeedback(null), 500);
-                    return () => clearTimeout(timer);
-                }
-            }, [feedback]);
-
-            useEffect(() => {
-                if (state.gameState === 'gameOver') {
-                    if (state.score > state.highScore) {
-                        dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
-                        saveHighScore(state.score);
+                    newStreak = 0;
+                    pointsEarned = -5;
+                    if (!state.secondChanceUsed) {
+                        dispatch({ type: 'USE_SECOND_CHANCE' });
+                        pointsEarned = 0;
                     }
+                    playIncorrect();
                 }
-            }, [state.gameState, state.score, state.highScore]);
+
+                const newScore = Math.max(0, state.score + pointsEarned);
+                dispatch({ type: 'UPDATE_SCORE', newScore, newStreak });
+
+                if (newScore > state.highScore) {
+                    dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: newScore });
+                    saveHighScore(newScore);
+                }
+
+                if (newScore === 0 && state.secondChanceUsed) {
+                    dispatch({ type: 'GAME_OVER' });
+                }
+
+                setPrediction(null);
+            }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
 
             const saveHighScore = useCallback(async (score) => {
                 try {
@@ -513,110 +261,119 @@
             }, []);
 
             const startGame = useCallback(() => {
-                setShowTutorial(false);
                 dispatch({ type: 'START_GAME' });
-                startTimer();
-            }, [startTimer]);
-
-            const renderGameContent = useMemo(() => {
-                switch (state.gameState) {
-                    case 'ready':
-                        return (
-                            <div className="text-center">
-                                <button 
-                                    onClick={startGame}
-                                    className="px-6 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200 text-xl font-bold pulse"
-                                >
-                                    Start Game
-                                </button>
-                            </div>
-                        );
-                    case 'playing':
-                    case 'allIn':
-                        return (
-                            <div className="text-center">
-                                <div className="text-4xl font-bold mb-4">
-                                    <i className="far fa-clock mr-2" aria-hidden="true"></i>{timeLeft}s
-                                    {isFrozen && <span className="ml-2 text-blue-500" role="img" aria-label="Frozen">❄️</span>}
-                                </div>
-                                <ScoreDisplay 
-                                    score={state.score} 
-                                    multiplier={state.multiplier} 
-                                    scoreChange={state.scoreChange}
-                                    highScore={state.highScore}
-                                />
-                                <div className="flex justify-center space-x-6 my-6">
-                                    <DiceDisplay value={state.dice1} rolling={state.isRolling} />
-                                    <DiceDisplay value={state.dice2} rolling={state.isRolling} />
-                                </div>
-                                {state.lastRollResult && (
-                                    <div className={`text-3xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-500' : state.lastRollResult > 7 ? 'text-green-500' : 'text-yellow-500'} fade-in`}>
-                                        Last Roll: {state.lastRollResult}
-                                    </div>
-                                )}
-                                <div className="flex justify-center space-x-2 mb-4">
-                                    {state.recentRolls.map((roll, index) => (
-                                        <div key={index} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${roll < 7 ? 'bg-red-500' : roll > 7 ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
-                                            {roll}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-                                    <button
-                                        aria-label={state.gameState === 'allIn' ? "All-In: Less than 7" : "Predict less than 7"}
-                                        className={`w-full sm:w-auto px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                                        onClick={() => state.gameState === 'allIn' ? handleAllIn('less') : handlePrediction('less')}
-                                        disabled={state.isRolling}
-                                    >
-                                        <i className="fas fa-arrow-down mr-2" aria-hidden="true"></i>
-                                        {state.gameState === 'allIn' ? "All-In: Less than 7" : "Less than 7"}
-                                    </button>
-                                    <button
-                                        aria-label={state.gameState === 'allIn' ? "All-In: More than 7" : "Predict more than 7"}
-                                        className={`w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                                        onClick={() => state.gameState === 'allIn' ? handleAllIn('more') : handlePrediction('more')}
-                                        disabled={state.isRolling}
-                                    >
-                                        <i className="fas fa-arrow-up mr-2" aria-hidden="true"></i>
-                                        {state.gameState === 'allIn' ? "All-In: More than 7" : "More than 7"}
-                                    </button>
-                                </div>
-                                {state.activeBonus && (
-                                    <BonusDisplay bonus={state.activeBonus} safeZoneRolls={state.safeZoneRolls} />
-                                )}
-                                {state.gameState === 'allIn' && (
-                                    <div className="text-2xl font-bold text-yellow-500 mb-4">
-                                        All-In Round! Double or lose all your score!
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    case 'gameOver':
-                        return (
-                            <div className="text-center">
-                                <div className="text-5xl font-bold mb-6 fade-in">Game Over!</div>
-                                <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
-                                <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
-                                <button 
-                                    onClick={startGame}
-                                    className="px-6 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-full hover:from-green-500 hover:to-blue-600 transition-colors duration-200 text-xl font-bold pulse"
-                                >
-                                    Play Again
-                                </button>
-                            </div>
-                        );
-                    default:
-                        return null;
-                }
-            }, [state, timeLeft, isFrozen, startGame, handleAllIn, handlePrediction]);
+            }, []);
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-4">
-                    <h1 className="text-5xl font-extrabold mb-6 text-yellow-400">🎲 Dice Prophet 🎲</h1>
-                    {showTutorial && <Tutorial onComplete={startGame} />}
-                    {renderGameContent}
-                    {feedback === 'success' && <div className="feedback success"></div>}
-                    {feedback === 'failure' && <div className="feedback failure"></div>}
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>DICE PROPHET</h1>
+                    {state.gameState === 'ready' ? (
+                        <button onClick={startGame} style={{
+                            backgroundColor: '#00ff00',
+                            color: '#000',
+                            border: 'none',
+                            padding: '10px 20px',
+                            fontSize: '16px',
+                            cursor: 'pointer'
+                        }}>
+                            START GAME
+                        </button>
+                    ) : state.gameState === 'playing' ? (
+                        <>
+                            <div style={{ fontSize: '20px', marginBottom: '20px' }}>
+                                SCORE: {state.score}
+                            </div>
+                            <div style={{ fontSize: '16px', marginBottom: '20px' }}>
+                                STREAK: {state.streak} | HIGH SCORE: {state.highScore}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                                <Dice value={state.dice1} />
+                                <Dice value={state.dice2} />
+                            </div>
+                            {state.lastRollSum && (
+                                <div style={{ fontSize: '18px', marginBottom: '20px' }}>
+                                    SUM: {state.lastRollSum}
+                                </div>
+                            )}
+                            <div>
+                                <button
+                                    onClick={() => handlePrediction('less')}
+                                    disabled={prediction !== null}
+                                    style={{
+                                        backgroundColor: prediction === 'less' ? '#ff0000' : '#00ff00',
+                                        color: '#000',
+                                        border: 'none',
+                                        padding: '10px 20px',
+                                        fontSize: '16px',
+                                        margin: '0 10px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    LESS THAN 7
+                                </button>
+                                <button
+                                    onClick={() => handlePrediction('equal')}
+                                    disabled={prediction !== null}
+                                    style={{
+                                        backgroundColor: prediction === 'equal' ? '#ff0000' : '#00ff00',
+                                        color: '#000',
+                                        border: 'none',
+                                        padding: '10px 20px',
+                                        fontSize: '16px',
+                                        margin: '0 10px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    EQUAL TO 7
+                                </button>
+                                <button
+                                    onClick={() => handlePrediction('more')}
+                                    disabled={prediction !== null}
+                                    style={{
+                                        backgroundColor: prediction === 'more' ? '#ff0000' : '#00ff00',
+                                        color: '#000',
+                                        border: 'none',
+                                        padding: '10px 20px',
+                                        fontSize: '16px',
+                                        margin: '0 10px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    MORE THAN 7
+                                </button>
+                            </div>
+                            {state.doublePointsRolls > 0 && (
+                                <div style={{ fontSize: '16px', marginTop: '20px' }} className="blink">
+                                    DOUBLE POINTS: {state.doublePointsRolls} ROLLS LEFT
+                                </div>
+                            )}
+                            {!state.secondChanceUsed && (
+                                <div style={{ fontSize: '16px', marginTop: '20px' }}>
+                                    SECOND CHANCE AVAILABLE
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ fontSize: '24px', marginBottom: '20px' }}>GAME OVER</div>
+                            <div style={{ fontSize: '20px', marginBottom: '20px' }}>
+                                FINAL SCORE: {state.score}
+                            </div>
+                            <div style={{ fontSize: '18px', marginBottom: '20px' }}>
+                                HIGH SCORE: {state.highScore}
+                            </div>
+<button onClick={startGame} style={{
+                                backgroundColor: '#00ff00',
+                                color: '#000',
+                                border: 'none',
+                                padding: '10px 20px',
+                                fontSize: '16px',
+                                cursor: 'pointer'
+                            }}>
+                                PLAY AGAIN
+                            </button>
+                        </>
+                    )}
                 </div>
             );
         }
@@ -639,9 +396,9 @@
             render() {
                 if (this.state.hasError) {
                     return (
-                        <div className="text-center text-red-500">
-                            <h2 className="text-2xl font-bold mb-4">Oops! Something went wrong.</h2>
-                            <p>Please try refreshing the page or contact support if the problem persists.</p>
+                        <div style={{ textAlign: 'center', color: '#ff0000', padding: '20px' }}>
+                            <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>SYSTEM ERROR</h2>
+                            <p style={{ fontSize: '16px' }}>PLEASE RESTART</p>
                         </div>
                     );
                 }
