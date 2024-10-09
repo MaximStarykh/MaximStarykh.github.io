@@ -70,8 +70,8 @@
 
         // Sound effects
         const useSound = () => {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const playSound = (frequency, duration) => {
+            const audioContext = React.useMemo(() => new (window.AudioContext || window.webkitAudioContext)(), []);
+            const playSound = useCallback((frequency, duration) => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 oscillator.type = 'sine';
@@ -83,12 +83,13 @@
                 gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration - 0.01);
                 oscillator.start();
                 oscillator.stop(audioContext.currentTime + duration);
-            };
+            }, [audioContext]);
+
             return {
-                playDiceRoll: useCallback(() => playSound(300, 0.3), []),
-                playCorrect: useCallback(() => playSound(440, 0.2), []),
-                playIncorrect: useCallback(() => playSound(220, 0.2), []),
-                playBonus: useCallback(() => playSound(660, 0.3), [])
+                playDiceRoll: useCallback(() => playSound(300, 0.3), [playSound]),
+                playCorrect: useCallback(() => playSound(440, 0.2), [playSound]),
+                playIncorrect: useCallback(() => playSound(220, 0.2), [playSound]),
+                playBonus: useCallback(() => playSound(660, 0.3), [playSound])
             };
         };
 
@@ -106,14 +107,14 @@
                 return () => clearInterval(timerRef.current);
             }, [isFrozen]);
 
-            const addTime = (seconds) => {
+            const addTime = useCallback((seconds) => {
                 setTimeLeft(prev => prev + seconds);
-            };
+            }, []);
 
-            const freezeTimer = () => {
+            const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
                 setTimeout(() => setIsFrozen(false), 5000);
-            };
+            }, []);
 
             return { timeLeft, addTime, freezeTimer, isFrozen };
         };
@@ -381,7 +382,7 @@
                 });
 
                 // Bonus activation logic
-                if (state.rollCount % 5 === 4 && !state.activeBonus) {
+                if ((state.rollCount + 1) % 5 === 0 && !state.activeBonus) {
                     const bonusChance = Math.random();
                     if (bonusChance < 0.5) {
                         const bonusTypeChance = Math.random();
@@ -393,8 +394,6 @@
                             freezeTimer();
                             addTime(5);
                             playBonus();
-                        } else {
-                            // No bonus
                         }
                     }
                 }
