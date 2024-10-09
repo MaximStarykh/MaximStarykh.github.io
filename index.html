@@ -20,18 +20,23 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Custom Styles -->
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
         }
-        .dice-gradient {
-            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
         }
-        .bg-gradient-game {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .neon-text {
+            text-shadow: 0 0 5px #4f46e5, 0 0 10px #4f46e5, 0 0 15px #4f46e5, 0 0 20px #4f46e5;
+        }
+        .neon-border {
+            box-shadow: 0 0 5px #4f46e5, 0 0 10px #4f46e5;
         }
         @keyframes float {
             0% { transform: translateY(0px); }
@@ -64,7 +69,7 @@
         }
     </style>
 </head>
-<body class="bg-gradient-game text-white min-h-screen">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
@@ -186,8 +191,7 @@
         // Memoized components
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div
-                className={`w-24 h-24 dice-gradient rounded-2xl flex items-center justify-center text-5xl font-bold text-purple-800 shadow-lg ${rolling ? 'animate-spin' : 'float-animation'}`}
-                style={{ boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+                className={`w-20 h-20 bg-indigo-900 rounded-lg flex items-center justify-center text-4xl font-bold text-white neon-border ${rolling ? 'animate-spin' : 'float-animation'}`}
                 aria-label={`Dice showing ${value}`}
                 role="img"
             >
@@ -197,7 +201,7 @@
 
         const BonusDisplay = React.memo(({ bonus, safeZoneRolls }) => (
             <div className="mb-4 slide-in">
-                <div className="px-4 py-2 bg-yellow-400 text-purple-900 rounded-full flex items-center justify-center shadow-md">
+                <div className="px-4 py-2 bg-indigo-600 text-white rounded-full flex items-center justify-center neon-border">
                     <i className={`fas ${bonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-2`} aria-hidden="true"></i>
                     <span className="font-semibold">{bonus}</span>
                     {bonus === 'Safe Zone' && <span className="ml-2 text-sm">({safeZoneRolls} rolls left)</span>}
@@ -206,20 +210,20 @@
         ));
 
         const ScoreDisplay = React.memo(({ score, multiplier, scoreChange, highScore }) => (
-            <div className="text-center bg-white bg-opacity-10 rounded-xl p-4 shadow-lg">
-                <div className="text-4xl mb-2 font-bold">
-                    <span className="text-yellow-300">Score: {Math.floor(score)}</span>
+            <div className="text-center bg-indigo-900 bg-opacity-50 rounded-xl p-4 neon-border">
+                <div className="text-4xl mb-2 font-bold orbitron">
+                    <span className="text-indigo-300">Score: {Math.floor(score)}</span>
                     {scoreChange !== 0 && (
                         <span className={`ml-2 ${scoreChange > 0 ? 'text-green-400' : 'text-red-400'} slide-in`}>
                             {scoreChange > 0 ? '+' : ''}{Math.floor(scoreChange)}
                         </span>
                     )}
                 </div>
-                <div className="text-2xl mb-2">
-                    Multiplier: <span className="text-blue-300 font-bold">×{multiplier}</span>
+                <div className="text-2xl mb-2 orbitron">
+                    Multiplier: <span className="text-indigo-300 font-bold">×{multiplier}</span>
                 </div>
-                <div className="text-lg">
-                    High Score: <span className="text-purple-300 font-bold">{Math.floor(highScore)}</span>
+                <div className="text-lg orbitron">
+                    High Score: <span className="text-indigo-300 font-bold">{Math.floor(highScore)}</span>
                 </div>
             </div>
         ));
@@ -228,16 +232,16 @@
             const [currentSlide, setCurrentSlide] = useState(0);
             const slides = [
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">Welcome to Dice Prophet!</h2>
+                    <h2 className="text-3xl font-bold mb-4 text-indigo-300 neon-text">Welcome to Dice Prophet!</h2>
                     <p className="mb-4 text-lg">Predict the future, master the dice, and become a legend!</p>
                     <div className="text-left space-y-3">
-                        <p><i className="fas fa-dice text-blue-300 mr-2"></i> Guess if the sum will be less or more than 7</p>
+                        <p><i className="fas fa-dice text-indigo-300 mr-2"></i> Guess if the sum will be less or more than 7</p>
                         <p><i className="fas fa-chart-line text-green-300 mr-2"></i> Build your multiplier for bigger scores</p>
                         <p><i className="fas fa-exclamation-triangle text-yellow-300 mr-2"></i> But beware of the dreaded 7!</p>
                     </div>
                 </div>,
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">Power-Ups and Bonuses</h2>
+                    <h2 className="text-3xl font-bold mb-4 text-indigo-300 neon-text">Power-Ups and Bonuses</h2>
                     <div className="text-left space-y-3">
                         <p><i className="fas fa-shield-alt text-purple-300 mr-2"></i> Safe Zone: Protects you from losing your streak</p>
                         <p><i className="fas fa-clock text-blue-300 mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
@@ -245,7 +249,7 @@
                     </div>
                 </div>,
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">All or Nothing!</h2>
+                    <h2 className="text-3xl font-bold mb-4 text-indigo-300 neon-text">All or Nothing!</h2>
                     <p className="mb-4 text-lg">When time runs out, you have one last chance to double your score!</p>
                     <div className="text-left space-y-3">
                         <p><i className="fas fa-trophy text-yellow-300 mr-2"></i> Go all-in for a shot at glory</p>
@@ -257,28 +261,28 @@
 
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gradient-game p-6 rounded-2xl shadow-2xl max-w-sm mx-auto relative">
+                    <div className="bg-indigo-900 p-6 rounded-2xl shadow-2xl max-w-sm mx-auto relative neon-border">
                         {slides[currentSlide]}
                         <div className="mt-6 flex justify-between items-center">
                             <div className="flex space-x-2">
                                 {slides.map((_, index) => (
                                     <div
                                         key={index}
-                                        className={`w-3 h-3 rounded-full ${index === currentSlide ? 'bg-yellow-300' : 'bg-gray-400'}`}
+                                        className={`w-3h-3 rounded-full ${index === currentSlide ? 'bg-indigo-300' : 'bg-gray-400'}`}
                                     ></div>
                                 ))}
                             </div>
                             {currentSlide === slides.length - 1 ? (
                                 <button
                                     onClick={onComplete}
-                                    className="px-6 py-2 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 font-semibold"
+                                    className="px-6 py-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-colors duration-200 font-semibold neon-border"
                                 >
                                     Start Game
                                 </button>
                             ) : (
                                 <button
                                     onClick={() => setCurrentSlide(prev => prev + 1)}
-                                    className="px-6 py-2 bg-blue-400 text-white rounded-full hover:bg-blue-300 transition-colors duration-200 font-semibold"
+                                    className="px-6 py-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-colors duration-200 font-semibold neon-border"
                                 >
                                     Next
                                 </button>
@@ -302,7 +306,7 @@
 
                 const fetchHighScore = async () => {
                     try {
-const value = await new Promise((resolve, reject) => {
+                        const value = await new Promise((resolve, reject) => {
                             tg.CloudStorage.getItem("highScore", (error, value) => {
                                 if (error) reject(error);
                                 else resolve(value);
@@ -460,7 +464,7 @@ const value = await new Promise((resolve, reject) => {
                             <div className="text-center">
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="px-8 py-4 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation neon-border"
                                 >
                                     Start Game
                                 </button>
@@ -470,7 +474,7 @@ const value = await new Promise((resolve, reject) => {
                     case 'allIn':
                         return (
                             <div className="text-center space-y-6">
-                                <div className="text-4xl font-bold mb-4 bg-white bg-opacity-10 rounded-full py-2 px-4 inline-block">
+                                <div className="text-4xl font-bold mb-4 bg-indigo-900 bg-opacity-50 rounded-full py-2 px-4 inline-block neon-border">
                                     <i className="far fa-clock mr-2" aria-hidden="true"></i>{timeLeft}s
                                     {isFrozen && <span className="ml-2 text-blue-300" role="img" aria-label="Frozen">❄️</span>}
                                 </div>
@@ -485,13 +489,13 @@ const value = await new Promise((resolve, reject) => {
                                     <DiceDisplay value={state.dice2} rolling={state.isRolling} />
                                 </div>
                                 {state.lastRollResult && (
-                                    <div className={`text-3xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-400' : state.lastRollResult > 7 ? 'text-green-400' : 'text-yellow-400'} fade-in`}>
+                                    <div className={`text-3xl mb-4 font-bold ${state.lastRollResult < 7 ? 'text-red-400' : state.lastRollResult > 7 ? 'text-green-400' : 'text-yellow-400'} fade-in neon-text`}>
                                         Last Roll: {state.lastRollResult}
                                     </div>
                                 )}
                                 <div className="flex justify-center space-x-3 mb-6">
                                     {state.recentRolls.map((roll, index) => (
-                                        <div key={index} className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${roll < 7 ? 'bg-red-400' : roll > 7 ? 'bg-green-400' : 'bg-yellow-400'} text-purple-900 shadow-md`}>
+                                        <div key={index} className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${roll < 7 ? 'bg-red-500' : roll > 7 ? 'bg-green-500' : 'bg-yellow-500'} text-white neon-border`}>
                                             {roll}
                                         </div>
                                     ))}
@@ -499,7 +503,7 @@ const value = await new Promise((resolve, reject) => {
                                 <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
                                     <button
                                         aria-label={state.gameState === 'allIn' ? "All-In: Less than 7" : "Predict less than 7"}
-                                        className={`w-full sm:w-auto px-8 py-4 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xl font-bold shadow-lg ${!state.isRolling ? 'pulse-animation' : ''}`}
+                                        className={`w-full sm:w-auto px-8 py-4 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xl font-bold shadow-lg ${!state.isRolling ? 'pulse-animation' : ''} neon-border`}
                                         onClick={() => state.gameState === 'allIn' ? handleAllIn('less') : handlePrediction('less')}
                                         disabled={state.isRolling}
                                     >
@@ -508,7 +512,7 @@ const value = await new Promise((resolve, reject) => {
                                     </button>
                                     <button
                                         aria-label={state.gameState === 'allIn' ? "All-In: More than 7" : "Predict more than 7"}
-                                        className={`w-full sm:w-auto px-8 py-4 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xl font-bold shadow-lg ${!state.isRolling ? 'pulse-animation' : ''}`}
+                                        className={`w-full sm:w-auto px-8 py-4 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xl font-bold shadow-lg ${!state.isRolling ? 'pulse-animation' : ''} neon-border`}
                                         onClick={() => state.gameState === 'allIn' ? handleAllIn('more') : handlePrediction('more')}
                                         disabled={state.isRolling}
                                     >
@@ -520,7 +524,7 @@ const value = await new Promise((resolve, reject) => {
                                     <BonusDisplay bonus={state.activeBonus} safeZoneRolls={state.safeZoneRolls} />
                                 )}
                                 {state.gameState === 'allIn' && (
-                                    <div className="text-2xl font-bold text-yellow-300 mb-4 pulse-animation">
+                                    <div className="text-2xl font-bold text-yellow-300 mb-4 pulse-animation neon-text">
                                         All-In Round! Double or lose all your score!
                                     </div>
                                 )}
@@ -529,12 +533,12 @@ const value = await new Promise((resolve, reject) => {
                     case 'gameOver':
                         return (
                             <div className="text-center space-y-6">
-                                <div className="text-5xl font-bold mb-6 text-yellow-300 fade-in">Game Over!</div>
+                                <div className="text-5xl font-bold mb-6 text-indigo-300 fade-in neon-text">Game Over!</div>
                                 <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
                                 <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="px-8 py-4 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation neon-border"
                                 >
                                     Play Again
                                 </button>
@@ -547,7 +551,7 @@ const value = await new Promise((resolve, reject) => {
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4">
-                    <h1 className="text-5xl font-bold mb-8 text-yellow-300 float-animation">Dice Prophet</h1>
+                    <h1 className="text-5xl font-bold mb-8 text-indigo-300 float-animation neon-text orbitron">Dice Prophet</h1>
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent()}
                 </div>
@@ -573,7 +577,7 @@ const value = await new Promise((resolve, reject) => {
                 if (this.state.hasError) {
                     return (
                         <div className="text-center text-red-400 p-4">
-                            <h2 className="text-3xl font-bold mb-4">Oops! Something went wrong.</h2>
+                            <h2 className="text-3xl font-bold mb-4 neon-text">Oops! Something went wrong.</h2>
                             <p className="text-xl">Please try refreshing the page or contact support if the problem persists.</p>
                         </div>
                     );
