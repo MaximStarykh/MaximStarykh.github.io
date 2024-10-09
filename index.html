@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dice Prophet</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
@@ -49,27 +49,15 @@
             from { transform: translateY(-20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .swipe-in-right {
-            animation: swipeInRight 0.3s ease-in-out;
-        }
-        @keyframes swipeInRight {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-        }
-        .swipe-out-left {
-            animation: swipeOutLeft 0.3s ease-in-out;
-        }
-        @keyframes swipeOutLeft {
-            from { transform: translateX(0); }
-            to { transform: translateX(-100%); }
-        }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, useReducer, useRef } = React;
         const tg = window.Telegram.WebApp;
 
+        // Sound effects
         const useSound = () => {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
@@ -91,51 +79,54 @@
             };
 
             return {
-                playDiceRoll: () => playSound(300, 0.3),
-                playCorrect: () => playSound(440, 0.2),
-                playIncorrect: () => playSound(220, 0.2),
-                playBonus: () => playSound(660, 0.3)
+                playDiceRoll: useCallback(() => playSound(300, 0.3), []),
+                playCorrect: useCallback(() => playSound(440, 0.2), []),
+                playIncorrect: useCallback(() => playSound(220, 0.2), []),
+                playBonus: useCallback(() => playSound(660, 0.3), [])
             };
         };
 
+        // Game timer hook
         const useGameTimer = (initialTime) => {
-            const [timeLeft, setTimeLeft] = React.useState(initialTime);
-            const [isFrozen, setIsFrozen] = React.useState(false);
-            const timerRef = React.useRef(null);
+            const [timeLeft, setTimeLeft] = useState(initialTime);
+            const [isFrozen, setIsFrozen] = useState(false);
+            const isFrozenRef = useRef(isFrozen);
+            const timerRef = useRef(null);
 
-            const startTimer = React.useCallback(() => {
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => {
-                    setTimeLeft((prevTime) => {
-                        if (isFrozen || prevTime <= 0) {
-                            clearInterval(timerRef.current);
-                            return prevTime;
-                        }
-                        return prevTime - 1;
-                    });
-                }, 1000);
+            useEffect(() => {
+                isFrozenRef.current = isFrozen;
             }, [isFrozen]);
 
-            const stopTimer = React.useCallback(() => {
+            const startTimer = useCallback(() => {
+                if (timerRef.current) clearInterval(timerRef.current);
+                timerRef.current = setInterval(() => {
+                    if (!isFrozenRef.current) {
+                        setTimeLeft((prevTime) => Math.max(prevTime - 1, 0));
+                    }
+                }, 1000);
+            }, []);
+
+            const stopTimer = useCallback(() => {
                 clearInterval(timerRef.current);
             }, []);
 
-            const addTime = React.useCallback((seconds) => {
+            const addTime = useCallback((seconds) => {
                 setTimeLeft(prevTime => prevTime + seconds);
             }, []);
 
-            const freezeTimer = React.useCallback(() => {
+            const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
                 setTimeout(() => setIsFrozen(false), 5000);
             }, []);
 
-            React.useEffect(() => {
+            useEffect(() => {
                 return () => clearInterval(timerRef.current);
             }, []);
 
             return { timeLeft, startTimer, stopTimer, addTime, freezeTimer, isFrozen };
         };
 
+        // Game reducer
         const gameReducer = (state, action) => {
             switch (action.type) {
                 case 'START_GAME':
@@ -180,9 +171,10 @@
             }
         };
 
+        // Memoized components
         const DiceDisplay = React.memo(({ value, rolling }) => (
             <div 
-                className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`} 
+                className={`w-20 h-20 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center text-4xl font-bold shadow-lg ${rolling ? 'dice-roll' : ''}`}
                 aria-label={`Dice showing ${value}`}
                 role="img"
             >
@@ -220,7 +212,8 @@
         ));
 
         const Tutorial = ({ onComplete }) => {
-            const [currentSlide, setCurrentSlide] = React.useState(0);
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const touchStartX = useRef(0);
             const slides = [
                 <div className="text-center">
                     <h2 className="text-2xl font-bold mb-4">Welcome to Dice Prophet!</h2>
@@ -250,22 +243,22 @@
                 </div>
             ];
 
-            const handleSwipe = (direction) => {
+            const handleSwipe = useCallback((direction) => {
                 if (direction === 'left' && currentSlide < slides.length - 1) {
-                    setCurrentSlide(currentSlide + 1);
+                    setCurrentSlide(prev => prev + 1);
                 } else if (direction === 'right' && currentSlide > 0) {
-                    setCurrentSlide(currentSlide - 1);
+                    setCurrentSlide(prev => prev - 1);
                 }
-            };
+            }, [currentSlide, slides.length]);
 
             return (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50">
                     <div 
                         className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm mx-auto relative"
-                        onTouchStart={(e) => this.touchStartX = e.touches[0].clientX}
+                        onTouchStart={(e) => touchStartX.current = e.touches[0].clientX}
                         onTouchEnd={(e) => {
                             const touchEndX = e.changedTouches[0].clientX;
-                            const diff = this.touchStartX - touchEndX;
+                            const diff = touchStartX.current - touchEndX;
                             if (Math.abs(diff) > 50) {
                                 handleSwipe(diff > 0 ? 'left' : 'right');
                             }
@@ -290,7 +283,7 @@
                                 </button>
                             ) : (
                                 <button 
-                                    onClick={() => setCurrentSlide(currentSlide + 1)}
+                                    onClick={() => setCurrentSlide(prev => prev + 1)}
                                     className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200"
                                 >
                                     Next
@@ -302,12 +295,12 @@
             );
         };
 		
-		const initialState = {
+        const initialState = {
             dice1: 1,
             dice2: 1,
             score: 0,
             highScore: 0,
-            multiplier: 1,
+			multiplier: 1,
             activeBonus: null,
             gameState: 'ready',
             safeZoneRolls: 0,
@@ -319,12 +312,12 @@
         };
 
         function DiceProphet() {
-            const [state, dispatch] = React.useReducer(gameReducer, initialState);
+            const [state, dispatch] = useReducer(gameReducer, initialState);
             const { timeLeft, startTimer, stopTimer, addTime, freezeTimer, isFrozen } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
-            const [showTutorial, setShowTutorial] = React.useState(true);
+            const [showTutorial, setShowTutorial] = useState(true);
 
-            React.useEffect(() => {
+            useEffect(() => {
                 tg.ready();
                 tg.expand();
                 document.body.className = tg.colorScheme;
@@ -351,15 +344,15 @@
                 return () => {
                     stopTimer();
                 };
-            }, []);
+            }, [stopTimer]);
 
-            React.useEffect(() => {
+            useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
                     dispatch({ type: 'END_GAME' });
                 }
             }, [timeLeft, state.gameState]);
 
-            const rollDice = React.useCallback(() => {
+            const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
                 playDiceRoll();
                 tg.HapticFeedback.impactOccurred('medium');
@@ -373,30 +366,35 @@
                 });
             }, [playDiceRoll]);
 
-            const handlePrediction = React.useCallback(async (pred) => {
+            const handlePrediction = useCallback(async (pred) => {
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
-                let isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
+                const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
                 let newScore = state.score;
                 let newMultiplier = state.multiplier;
                 
                 if (isCorrect) {
-                    const basePoints = 100 * newMultiplier;
+                    const basePoints = 150 * newMultiplier;
                     newScore += basePoints;
-                    newMultiplier = Math.min(newMultiplier + 1, 10); // Cap multiplier at 10x
+                    newMultiplier = Math.min(newMultiplier + 1, 15);
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
-                } else if (sum === 7 && state.activeBonus !== 'Safe Zone') {
-                    newScore = Math.floor(newScore / 2);
-                    newMultiplier = 1;
-                    playIncorrect();
-                    tg.HapticFeedback.notificationOccurred('error');
                 } else {
-                    if (state.activeBonus !== 'Safe Zone') {
-                        newMultiplier = 1;
+                    if (state.activeBonus === 'Safe Zone') {
+                        // Safe Zone active: No penalties applied
+                        playIncorrect();
+                        tg.HapticFeedback.notificationOccurred('warning');
+                    } else {
+                        if (sum === 7) {
+                            newScore = Math.floor(newScore * 0.5); // 50% score reduction
+                            playIncorrect();
+                            tg.HapticFeedback.notificationOccurred('error');
+                        } else {
+                            newMultiplier = 1;
+                            playIncorrect();
+                            tg.HapticFeedback.notificationOccurred('warning');
+                        }
                     }
-                    playIncorrect();
-                    tg.HapticFeedback.notificationOccurred('warning');
                 }
 
                 if (state.activeBonus === 'Safe Zone') {
@@ -413,8 +411,8 @@
                     multiplier: newMultiplier,
                 });
 
-                // Improved bonus logic
-                if (state.rollCount % 5 === 4 && !state.activeBonus) {
+                // Bonus activation logic
+                if (state.rollCount % 4 === 3 && !state.activeBonus) {
                     const bonusRoll = Math.random();
                     if (bonusRoll < 0.4) {
                         dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
@@ -422,13 +420,13 @@
                     } else if (bonusRoll < 0.8) {
                         dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
                         freezeTimer();
-                        addTime(5);
+                        addTime(7);
                         playBonus();
                     }
                 }
             }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer, addTime]);
 
-            const handleAllIn = React.useCallback(async (pred) => {
+            const handleAllIn = useCallback(async (pred) => {
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
                 let newScore = state.score;
@@ -437,7 +435,7 @@
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
                 } else {
-                    newScore = Math.floor(newScore * 0.25); // Lose 75% of the score for more risk
+                    newScore = Math.floor(newScore * 0.3);
                     playIncorrect();
                     tg.HapticFeedback.notificationOccurred('error');
                 }
@@ -450,7 +448,7 @@
                 dispatch({ type: 'GAME_OVER' });
             }, [state, rollDice, playCorrect, playIncorrect]);
 
-            React.useEffect(() => {
+            useEffect(() => {
                 if (state.gameState === 'gameOver') {
                     if (state.score > state.highScore) {
                         dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
@@ -459,7 +457,7 @@
                 }
             }, [state.gameState, state.score, state.highScore]);
 
-            const saveHighScore = React.useCallback(async (score) => {
+            const saveHighScore = useCallback(async (score) => {
                 try {
                     await new Promise((resolve, reject) => {
                         tg.CloudStorage.setItem("highScore", score.toString(), (error) => {
@@ -473,13 +471,13 @@
                 }
             }, []);
 
-            const startGame = React.useCallback(() => {
+            const startGame = useCallback(() => {
                 setShowTutorial(false);
                 dispatch({ type: 'START_GAME' });
                 startTimer();
             }, [startTimer]);
 
-            const renderGameContent = () => {
+            const renderGameContent = useMemo(() => {
                 switch (state.gameState) {
                     case 'ready':
                         return (
@@ -498,7 +496,7 @@
                             <div className="text-center">
                                 <div className="text-3xl font-bold mb-4">
                                     <i className="far fa-clock mr-2" aria-hidden="true"></i>{timeLeft}s
-                                    {isFrozen && <span className="ml-2 text-blue-500">(Frozen)</span>}
+                                    {isFrozen && <span className="ml-2 text-blue-500" role="img" aria-label="Frozen">❄️</span>}
                                 </div>
                                 <ScoreDisplay 
                                     score={state.score} 
@@ -547,7 +545,7 @@
                                 )}
                                 {state.gameState === 'allIn' && (
                                     <div className="text-xl font-bold text-yellow-500 mb-4">
-                                        All-In Round! Double or lose 75% of your score!
+                                        All-In Round! Double or lose 70% of your score!
                                     </div>
                                 )}
                             </div>
@@ -569,13 +567,13 @@
                     default:
                         return null;
                 }
-            };
+            }, [state, timeLeft, isFrozen, startGame, handleAllIn, handlePrediction]);
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4">
                     <h1 className="text-4xl font-bold mb-6 text-blue-600 dark:text-blue-400">Dice Prophet</h1>
                     {showTutorial && <Tutorial onComplete={startGame} />}
-                    {renderGameContent()}
+                    {renderGameContent}
                 </div>
             );
         }
@@ -611,132 +609,8 @@
 
         ReactDOM.render(
             <React.StrictMode>
-<ErrorBoundary>
-                    <DiceProphet />
-                </ErrorBoundary>
-            </React.StrictMode>,
-            document.getElementById('root')
-        );
-
-        // Keyboard navigation support
-        React.useEffect(() => {
-            const handleKeyDown = (e) => {
-                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                    const direction = e.key === 'ArrowLeft' ? 'right' : 'left';
-                    handleSwipe(direction);
-                } else if (e.key === 'Enter' || e.key === ' ') {
-                    if (currentSlide === slides.length - 1) {
-                        onComplete();
-                    } else {
-                        setCurrentSlide(currentSlide + 1);
-                    }
-                }
-            };
-
-            window.addEventListener('keydown', handleKeyDown);
-            return () => {
-                window.removeEventListener('keydown', handleKeyDown);
-            };
-        }, [currentSlide, slides.length, onComplete]);
-
-        // Focus trap for tutorial modal
-        React.useEffect(() => {
-            const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-            const modal = document.querySelector('.tutorial-modal');
-            const firstFocusableElement = modal.querySelectorAll(focusableElements)[0];
-            const focusableContent = modal.querySelectorAll(focusableElements);
-            const lastFocusableElement = focusableContent[focusableContent.length - 1];
-
-            const handleTabKey = (e) => {
-                const isTabPressed = e.key === 'Tab' || e.keyCode === 9;
-
-                if (!isTabPressed) return;
-
-                if (e.shiftKey) {
-                    if (document.activeElement === firstFocusableElement) {
-                        lastFocusableElement.focus();
-                        e.preventDefault();
-                    }
-                } else {
-                    if (document.activeElement === lastFocusableElement) {
-                        firstFocusableElement.focus();
-                        e.preventDefault();
-                    }
-                }
-            };
-
-            modal.addEventListener('keydown', handleTabKey);
-            firstFocusableElement.focus();
-
-            return () => {
-                modal.removeEventListener('keydown', handleTabKey);
-            };
-        }, []);
-
-        // Aria-live regions for dynamic content updates
-        const AriaLiveRegion = ({ children }) => (
-            <div aria-live="polite" aria-atomic="true" className="sr-only">
-                {children}
-            </div>
-        );
-
-        // Add AriaLiveRegion to the ScoreDisplay component
-        const ScoreDisplay = React.memo(({ score, multiplier, scoreChange, highScore }) => (
-            <>
-                <div className="text-center">
-                    <div className="text-3xl mb-2">
-                        Score: <span className="text-green-500 font-bold">{Math.floor(score)}</span>
-                        {scoreChange !== 0 && (
-                            <span className={`ml-2 ${scoreChange > 0 ? 'text-green-500' : 'text-red-500'} slide-in`}>
-                                {scoreChange > 0 ? '+' : ''}{Math.floor(scoreChange)}
-                            </span>
-                        )}
-                    </div>
-                    <div className="text-xl mb-2">
-                        Multiplier: <span className="text-blue-500 font-bold">×{multiplier}</span>
-                    </div>
-                    <div className="text-lg">
-                        High Score: <span className="text-purple-500 font-bold">{Math.floor(highScore)}</span>
-                    </div>
-                </div>
-                <AriaLiveRegion>
-                    Score: {Math.floor(score)}. Multiplier: {multiplier}. High Score: {Math.floor(highScore)}.
-                    {scoreChange !== 0 && `Score change: ${scoreChange > 0 ? 'plus' : 'minus'} ${Math.abs(Math.floor(scoreChange))}.`}
-                </AriaLiveRegion>
-            </>
-        ));
-
-        // Add aria-labels to buttons in the main game
-        const renderGameContent = () => {
-            // ... (previous code remains the same)
-            <button
-                aria-label={state.gameState === 'allIn' ? "All-In: Less than 7" : "Predict less than 7"}
-                className={`w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                onClick={() => state.gameState === 'allIn' ? handleAllIn('less') : handlePrediction('less')}
-                disabled={state.isRolling}
-            >
-                <i className="fas fa-arrow-down mr-2" aria-hidden="true"></i>
-                {state.gameState === 'allIn' ? "All-In: Less than 7" : "Less than 7"}
-            </button>
-            <button
-                aria-label={state.gameState === 'allIn' ? "All-In: More than 7" : "Predict more than 7"}
-                className={`w-full sm:w-auto px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${!state.isRolling ? 'pulse' : ''}`}
-                onClick={() => state.gameState === 'allIn' ? handleAllIn('more') : handlePrediction('more')}
-                disabled={state.isRolling}
-            >
-                <i className="fas fa-arrow-up mr-2" aria-hidden="true"></i>
-                {state.gameState === 'allIn' ? "All-In: More than 7" : "More than 7"}
-            </button>
-            // ... (rest of the code remains the same)
-        };
-
-        // Optimize final render
-        const MemoizedDiceProphet = React.memo(DiceProphet);
-
-        ReactDOM.render(
-            <React.StrictMode>
                 <ErrorBoundary>
-                    <MemoizedDiceProphet />
+                    <DiceProphet />
                 </ErrorBoundary>
             </React.StrictMode>,
             document.getElementById('root')
