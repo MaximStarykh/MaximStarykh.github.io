@@ -52,6 +52,24 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
+        .slide-animation-enter {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        .slide-animation-enter-active {
+            opacity: 1;
+            transform: translateX(0);
+            transition: all 300ms ease-in-out;
+        }
+        .slide-animation-exit {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .slide-animation-exit-active {
+            opacity: 0;
+            transform: translateX(-100%);
+            transition: all 300ms ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gradient-game text-white min-h-screen">
@@ -62,7 +80,6 @@
         const tg = window.Telegram.WebApp;
 
         // Constants and Configurations
-        const MAX_MULTIPLIER = 12;
         const BASE_POINTS = 100;
         const BONUS_ACTIVATION_ROLLS = 5;
         const BONUS_ACTIVATION_CHANCE = 0.5;
@@ -118,16 +135,12 @@
                 return () => clearInterval(timerRef.current);
             }, [isFrozen]);
 
-            const addTime = useCallback((seconds) => {
-                setTimeLeft(prev => prev + seconds);
-            }, []);
-
             const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
                 setTimeout(() => setIsFrozen(false), TIME_FREEZE_DURATION * 1000);
             }, []);
 
-            return { timeLeft, addTime, freezeTimer, isFrozen };
+            return { timeLeft, freezeTimer, isFrozen };
         };
 
         // Game reducer
@@ -136,13 +149,13 @@
             dice2: 1,
             score: 0,
             highScore: 0,
-            multiplier: 1,
             activeBonus: null,
             gameState: 'ready',
             safeZoneRolls: 0,
             rollCount: 0,
             isRolling: false,
             streak: 0,
+            isTimeFreezeActive: false,
         };
 
         const gameReducer = (state, action) => {
@@ -165,7 +178,6 @@
                     return {
                         ...state,
                         score: action.newScore,
-                        multiplier: action.multiplier,
                         streak: action.isCorrect ? state.streak + 1 : 0,
                     };
                 case 'ACTIVATE_BONUS':
@@ -173,9 +185,10 @@
                         ...state,
                         activeBonus: action.bonus,
                         safeZoneRolls: action.bonus === 'Safe Zone' ? SAFE_ZONE_ROLLS : state.safeZoneRolls,
+                        isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
                     };
                 case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0 };
+                    return { ...state, activeBonus: null, safeZoneRolls: 0, isTimeFreezeActive: false };
                 case 'UPDATE_HIGH_SCORE':
                     return { ...state, highScore: action.highScore };
                 case 'SET_ROLLING':
@@ -187,31 +200,31 @@
             }
         };
 
-        // Tutorial Component
+        // Tutorial Component with Swipe Functionality
         const Tutorial = ({ onComplete }) => {
             const [currentSlide, setCurrentSlide] = useState(0);
             const slides = [
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">Welcome to Dice Prophet!</h2>
-                    <p className="mb-4 text-lg">Predict the future, master the dice, and become a legend!</p>
-                    <div className="text-left space-y-3">
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">Welcome to Dice Prophet!</h2>
+                    <p className="mb-6 text-xl">Predict the future, master the dice, and become a legend!</p>
+                    <div className="text-left space-y-4">
                         <p><i className="fas fa-dice text-blue-300 mr-2"></i> Guess if the sum will be less or more than 7</p>
-                        <p><i className="fas fa-chart-line text-green-300 mr-2"></i> Build your multiplier for bigger scores</p>
+                        <p><i className="fas fa-chart-line text-green-300 mr-2"></i> Build your streak for bigger scores</p>
                         <p><i className="fas fa-exclamation-triangle text-yellow-300 mr-2"></i> But beware of the dreaded 7!</p>
                     </div>
                 </div>,
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">Power-Ups and Bonuses</h2>
-                    <div className="text-left space-y-3">
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">Power-Ups and Bonuses</h2>
+                    <div className="text-left space-y-4">
                         <p><i className="fas fa-shield-alt text-purple-300 mr-2"></i> Safe Zone: Protects you from losing your streak</p>
                         <p><i className="fas fa-clock text-blue-300 mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
                         <p><i className="fas fa-gift text-pink-300 mr-2"></i> Look out for surprise bonuses to boost your score!</p>
                     </div>
                 </div>,
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4 text-yellow-300">All or Nothing!</h2>
-                    <p className="mb-4 text-lg">When time runs out, you have one last chance to double your score!</p>
-                    <div className="text-left space-y-3">
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">All or Nothing!</h2>
+                    <p className="mb-6 text-xl">When time runs out, you have one last chance to double your score!</p>
+                    <div className="text-left space-y-4">
                         <p><i className="fas fa-trophy text-yellow-300 mr-2"></i> Go all-in for a shot at glory</p>
                         <p><i className="fas fa-skull-crossbones text-red-300 mr-2"></i> But be careful, you could lose it all!</p>
                         <p><i className="fas fa-star text-purple-300 mr-2"></i> Do you have what it takes to be a Dice Prophet?</p>
@@ -219,35 +232,52 @@
                 </div>
             ];
 
+            const handleTouchStart = (e) => {
+                touchStartX.current = e.changedTouches[0].screenX;
+            };
+
+            const handleTouchEnd = (e) => {
+                const touchEndX = e.changedTouches[0].screenX;
+                if (touchStartX.current - touchEndX > 50) {
+                    // Swipe left
+                    if (currentSlide < slides.length - 1) {
+                        setCurrentSlide(prev => prev + 1);
+                    }
+                } else if (touchEndX - touchStartX.current > 50) {
+                    // Swipe right
+                    if (currentSlide > 0) {
+                        setCurrentSlide(prev => prev - 1);
+                    }
+                }
+            };
+
+            const touchStartX = useRef(0);
+
             return (
-                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gradient-game p-6 rounded-2xl shadow-2xl max-w-sm mx-auto relative">
+                <div
+                    className="fixed inset-0 bg-gradient-game flex flex-col items-center justify-between z-50"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <div className="flex-grow flex items-center justify-center w-full">
                         {slides[currentSlide]}
-                        <div className="mt-6 flex justify-between items-center">
-                            <div className="flex space-x-2">
-                                {slides.map((_, index) => (
-                                    <div
-                                        key={index}
-                                        className={`w-3 h-3 rounded-full ${index === currentSlide ? 'bg-yellow-300' : 'bg-gray-400'}`}
-                                    ></div>
-                                ))}
-                            </div>
-                            {currentSlide === slides.length - 1 ? (
-                                <button
-                                    onClick={onComplete}
-                                    className="px-6 py-2 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 font-semibold"
-                                >
-                                    Start Game
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => setCurrentSlide(prev => prev + 1)}
-                                    className="px-6 py-2 bg-blue-400 text-white rounded-full hover:bg-blue-300 transition-colors duration-200 font-semibold"
-                                >
-                                    Next
-                                </button>
-                            )}
-                        </div>
+                    </div>
+                    <div className="w-full px-4 mb-8">
+                        {currentSlide === slides.length - 1 ? (
+                            <button
+                                onClick={onComplete}
+                                className="w-full py-4 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 font-bold text-2xl"
+                            >
+                                Start Game
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setCurrentSlide(prev => prev + 1)}
+                                className="w-full py-4 bg-blue-400 text-white rounded-full hover:bg-blue-300 transition-colors duration-200 font-bold text-2xl"
+                            >
+                                Next
+                            </button>
+                        )}
                     </div>
                 </div>
             );
@@ -284,7 +314,7 @@
 
         function DiceProphet() {
             const [state, dispatch] = useReducer(gameReducer, initialState);
-            const { timeLeft, addTime, freezeTimer } = useGameTimer(60);
+            const { timeLeft, freezeTimer, isFrozen } = useGameTimer(60);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
             const [showTutorial, setShowTutorial] = useState(true);
 
@@ -318,6 +348,15 @@
                 }
             }, [timeLeft, state.gameState]);
 
+            useEffect(() => {
+                if (state.isTimeFreezeActive) {
+                    freezeTimer();
+                    setTimeout(() => {
+                        dispatch({ type: 'DEACTIVATE_BONUS' });
+                    }, TIME_FREEZE_DURATION * 1000);
+                }
+            }, [state.isTimeFreezeActive, freezeTimer]);
+
             const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
                 playDiceRoll();
@@ -337,15 +376,12 @@
                 const sum = dice1 + dice2;
                 const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
                 let newScore = state.score;
-                let newMultiplier = isAllIn ? 1 : state.multiplier;
 
                 if (isCorrect) {
                     if (isAllIn) {
                         newScore *= 2;
                     } else {
-                        const basePoints = BASE_POINTS * newMultiplier;
-                        newScore += basePoints;
-                        newMultiplier = Math.min(newMultiplier + 1, MAX_MULTIPLIER);
+                        newScore += BASE_POINTS;
                     }
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
@@ -355,9 +391,6 @@
                     } else {
                         if (sum === 7) {
                             newScore = 0;
-                            newMultiplier = 1;
-                        } else {
-                            newMultiplier = 1;
                         }
                     }
                     playIncorrect();
@@ -376,7 +409,6 @@
                 dispatch({
                     type: 'UPDATE_SCORE',
                     newScore: newScore,
-                    multiplier: newMultiplier,
                     isCorrect: isCorrect,
                 });
 
@@ -389,8 +421,6 @@
                             playBonus();
                         } else {
                             dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
-                            freezeTimer();
-                            addTime(TIME_FREEZE_DURATION);
                             playBonus();
                         }
                     }
@@ -399,7 +429,7 @@
                 if (isAllIn) {
                     dispatch({ type: 'GAME_OVER' });
                 }
-            }, [state, rollDice, playCorrect, playIncorrect, playBonus, freezeTimer, addTime]);
+            }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
 
             useEffect(() => {
                 if (state.gameState === 'gameOver') {
@@ -446,24 +476,23 @@
                         return (
                             <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-white p-4">
                                 <div className="w-full max-w-md">
-                                    <h1 className="text-4xl font-bold text-center mb-4">Dice Prophet</h1>
+                                    {/* Removed the Dice Prophet heading */}
                                     <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div>
-                                                <p className="text-sm opacity-70">Score</p>
-                                                <p className="text-3xl font-bold">{Math.floor(state.score)}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm opacity-70">Multiplier</p>
-                                                <p className="text-3xl font-bold">x{state.multiplier}</p>
-                                            </div>
+                                        <div className="flex flex-col items-center mb-2">
+                                            <p className="text-sm opacity-70">Score</p>
+                                            <p className="text-5xl font-bold">{Math.floor(state.score)}</p>
                                         </div>
                                         <div className="flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2">
                                             <i className="far fa-clock mr-2"></i>
                                             <p className="text-2xl font-semibold">{timeLeft}s</p>
                                         </div>
-                                        {(state.activeBonus === 'Safe Zone' || state.activeBonus === 'Time Freeze') && (
-                                            <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400 animate-pulse" />
+                                        {state.activeBonus === 'Safe Zone' && (
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-green-500 animate-pulse" />
+                                        )}
+                                        {state.isTimeFreezeActive && (
+                                            <div className="absolute inset-0 bg-blue-500 bg-opacity-50 flex items-center justify-center">
+                                                <p className="text-2xl font-bold animate-pulse">Time Freeze!</p>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="flex justify-center items-center space-x-2 mb-4">
@@ -475,12 +504,6 @@
                                             <div className="bg-green-500 bg-opacity-80 rounded-xl py-1 px-3 flex items-center">
                                                 <i className="fas fa-shield-alt mr-1"></i>
                                                 <span className="font-semibold">Safe Zone ({state.safeZoneRolls})</span>
-                                            </div>
-                                        )}
-                                        {state.activeBonus === 'Time Freeze' && (
-                                            <div className="bg-blue-500 bg-opacity-80 rounded-xl py-1 px-3 flex items-center">
-                                                <i className="fas fa-clock mr-1"></i>
-                                                <span className="font-semibold">Time Freeze</span>
                                             </div>
                                         )}
                                     </div>
@@ -497,14 +520,14 @@
 
                                 <div className="w-full max-w-md space-y-4 mb-8">
                                     <button
-                                        className="w-full py-4 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150"
+                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'} active:bg-red-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('less', state.gameState === 'allIn')}
                                         disabled={state.isRolling}
                                     >
                                         <i className="fas fa-arrow-down mr-2"></i> {state.gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
                                     </button>
                                     <button
-                                        className="w-full py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150"
+                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'} active:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('more', state.gameState === 'allIn')}
                                         disabled={state.isRolling}
                                     >
@@ -534,7 +557,7 @@
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4">
-                    <h1 className="text-5xl font-bold mb-8 text-yellow-300 float-animation">Dice Prophet</h1>
+                    {/* Removed the outer Dice Prophet heading */}
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent()}
                 </div>
