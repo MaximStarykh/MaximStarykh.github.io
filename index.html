@@ -26,17 +26,18 @@
     <style>
         body {
             font-family: 'Poppins', sans-serif;
+            background-color: #FFF8E8;
         }
         .bg-gradient-game {
-            background: linear-gradient(to bottom, #2563eb, #6b21a8);
+            background: linear-gradient(to bottom, #FFF8E8, #FFFFFF);
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
         }
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
             100% { transform: translateY(0px); }
-        }
-        .float-animation {
-            animation: float 3s ease-in-out infinite;
         }
         .fade-in {
             animation: fadeIn 0.5s ease-out;
@@ -52,27 +53,9 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
-        .slide-animation-enter {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-        .slide-animation-enter-active {
-            opacity: 1;
-            transform: translateX(0);
-            transition: all 300ms ease-in-out;
-        }
-        .slide-animation-exit {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        .slide-animation-exit-active {
-            opacity: 0;
-            transform: translateX(-100%);
-            transition: all 300ms ease-in-out;
-        }
     </style>
 </head>
-<body class="bg-gradient-game text-white min-h-screen">
+<body class="bg-gradient-game text-black min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -86,6 +69,7 @@
         const BONUS_TYPE_CHANCE = 0.5;
         const SAFE_ZONE_ROLLS = 3;
         const TIME_FREEZE_DURATION = 5;
+        const MAX_MULTIPLIER = 12;
 
         // Sound effects
         const useSound = () => {
@@ -149,6 +133,7 @@
             dice2: 1,
             score: 0,
             highScore: 0,
+            multiplier: 1,
             activeBonus: null,
             gameState: 'ready',
             safeZoneRolls: 0,
@@ -156,6 +141,8 @@
             isRolling: false,
             streak: 0,
             isTimeFreezeActive: false,
+            buttonsDisabled: false,
+            showAllInPopup: false,
         };
 
         const gameReducer = (state, action) => {
@@ -163,7 +150,7 @@
                 case 'START_GAME':
                     return { ...initialState, gameState: 'playing', highScore: state.highScore };
                 case 'END_GAME':
-                    return { ...state, gameState: 'allIn' };
+                    return { ...state, gameState: 'allIn', buttonsDisabled: false };
                 case 'GAME_OVER':
                     return { ...state, gameState: 'gameOver' };
                 case 'ROLL_DICE':
@@ -178,6 +165,7 @@
                     return {
                         ...state,
                         score: action.newScore,
+                        multiplier: action.multiplier,
                         streak: action.isCorrect ? state.streak + 1 : 0,
                     };
                 case 'ACTIVATE_BONUS':
@@ -195,39 +183,47 @@
                     return { ...state, isRolling: action.isRolling };
                 case 'DECREASE_SAFE_ZONE':
                     return { ...state, safeZoneRolls: state.safeZoneRolls - 1 };
+                case 'DISABLE_BUTTONS':
+                    return { ...state, buttonsDisabled: true };
+                case 'ENABLE_BUTTONS':
+                    return { ...state, buttonsDisabled: false };
+                case 'SHOW_ALLIN_POPUP':
+                    return { ...state, showAllInPopup: true };
+                case 'HIDE_ALLIN_POPUP':
+                    return { ...state, showAllInPopup: false };
                 default:
                     return state;
             }
         };
 
-        // Tutorial Component with Swipe Functionality
+        // Tutorial Component with Centered Text
         const Tutorial = ({ onComplete }) => {
             const [currentSlide, setCurrentSlide] = useState(0);
             const slides = [
                 <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">Welcome to Dice Prophet!</h2>
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Welcome to Dice Prophet!</h2>
                     <p className="mb-6 text-xl">Predict the future, master the dice, and become a legend!</p>
-                    <div className="text-left space-y-4">
-                        <p><i className="fas fa-dice text-blue-300 mr-2"></i> Guess if the sum will be less or more than 7</p>
-                        <p><i className="fas fa-chart-line text-green-300 mr-2"></i> Build your streak for bigger scores</p>
-                        <p><i className="fas fa-exclamation-triangle text-yellow-300 mr-2"></i> But beware of the dreaded 7!</p>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-dice text-[#FCD581] mr-2"></i> Guess if the sum will be less or more than 7</p>
+                        <p><i className="fas fa-chart-line text-[#990D35] mr-2"></i> Build your streak for bigger scores</p>
+                        <p><i className="fas fa-exclamation-triangle text-[#D52941] mr-2"></i> But beware of the dreaded 7!</p>
                     </div>
                 </div>,
                 <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">Power-Ups and Bonuses</h2>
-                    <div className="text-left space-y-4">
-                        <p><i className="fas fa-shield-alt text-purple-300 mr-2"></i> Safe Zone: Protects you from losing your streak</p>
-                        <p><i className="fas fa-clock text-blue-300 mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
-                        <p><i className="fas fa-gift text-pink-300 mr-2"></i> Look out for surprise bonuses to boost your score!</p>
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Power-Ups and Bonuses</h2>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-shield-alt text-[#990D35] mr-2"></i> Safe Zone: Protects you from losing your streak</p>
+                        <p><i className="fas fa-clock text-[#FCD581] mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
+                        <p><i className="fas fa-gift text-[#D52941] mr-2"></i> Look out for surprise bonuses to boost your score!</p>
                     </div>
                 </div>,
                 <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                    <h2 className="text-4xl font-bold mb-6 text-yellow-300">All or Nothing!</h2>
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">All or Nothing!</h2>
                     <p className="mb-6 text-xl">When time runs out, you have one last chance to double your score!</p>
-                    <div className="text-left space-y-4">
-                        <p><i className="fas fa-trophy text-yellow-300 mr-2"></i> Go all-in for a shot at glory</p>
-                        <p><i className="fas fa-skull-crossbones text-red-300 mr-2"></i> But be careful, you could lose it all!</p>
-                        <p><i className="fas fa-star text-purple-300 mr-2"></i> Do you have what it takes to be a Dice Prophet?</p>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-trophy text-[#FCD581] mr-2"></i> Go all-in for a shot at glory</p>
+                        <p><i className="fas fa-skull-crossbones text-[#990D35] mr-2"></i> But be careful, you could lose it all!</p>
+                        <p><i className="fas fa-star text-[#D52941] mr-2"></i> Do you have what it takes to be a Dice Prophet?</p>
                     </div>
                 </div>
             ];
@@ -266,14 +262,14 @@
                         {currentSlide === slides.length - 1 ? (
                             <button
                                 onClick={onComplete}
-                                className="w-full py-4 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 font-bold text-2xl"
+                                className="w-full py-4 bg-[#FCD581] text-[#990D35] rounded-full hover:bg-[#FFF8E8] transition-colors duration-200 font-bold text-2xl"
                             >
                                 Start Game
                             </button>
                         ) : (
                             <button
                                 onClick={() => setCurrentSlide(prev => prev + 1)}
-                                className="w-full py-4 bg-blue-400 text-white rounded-full hover:bg-blue-300 transition-colors duration-200 font-bold text-2xl"
+                                className="w-full py-4 bg-[#D52941] text-white rounded-full hover:bg-[#990D35] transition-colors duration-200 font-bold text-2xl"
                             >
                                 Next
                             </button>
@@ -301,7 +297,7 @@
             render() {
                 if (this.state.hasError) {
                     return (
-                        <div className="text-center text-red-400 p-4">
+                        <div className="text-center text-[#D52941] p-4">
                             <h2 className="text-3xl font-bold mb-4">Oops! Something went wrong.</h2>
                             <p className="text-xl">Please try refreshing the page or contact support if the problem persists.</p>
                         </div>
@@ -344,7 +340,12 @@
 
             useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
-                    dispatch({ type: 'END_GAME' });
+                    dispatch({ type: 'DISABLE_BUTTONS' });
+                    dispatch({ type: 'SHOW_ALLIN_POPUP' });
+                    setTimeout(() => {
+                        dispatch({ type: 'HIDE_ALLIN_POPUP' });
+                        dispatch({ type: 'END_GAME' });
+                    }, 2000); // Show popup for 2 seconds
                 }
             }, [timeLeft, state.gameState]);
 
@@ -372,16 +373,18 @@
             }, [playDiceRoll]);
 
             const processPrediction = useCallback(async (pred, isAllIn = false) => {
+                if (state.buttonsDisabled) return;
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
                 const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
                 let newScore = state.score;
+                let newMultiplier = state.streak + 1;
 
                 if (isCorrect) {
                     if (isAllIn) {
                         newScore *= 2;
                     } else {
-                        newScore += BASE_POINTS;
+                        newScore += BASE_POINTS * newMultiplier;
                     }
                     playCorrect();
                     tg.HapticFeedback.notificationOccurred('success');
@@ -391,6 +394,9 @@
                     } else {
                         if (sum === 7) {
                             newScore = 0;
+                            newMultiplier = 1;
+                        } else {
+                            newMultiplier = 1;
                         }
                     }
                     playIncorrect();
@@ -409,6 +415,7 @@
                 dispatch({
                     type: 'UPDATE_SCORE',
                     newScore: newScore,
+                    multiplier: newMultiplier,
                     isCorrect: isCorrect,
                 });
 
@@ -465,7 +472,7 @@
                             <div className="text-center">
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-yellow-400 text-purple-900 rounded-full hover:bg-yellow-300 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="px-8 py-4 bg-[#FCD581] text-[#990D35] rounded-full hover:bg-[#FFF8E8] transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
                                 >
                                     Start Game
                                 </button>
@@ -474,9 +481,8 @@
                     case 'playing':
                     case 'allIn':
                         return (
-                            <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-white p-4">
+                            <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
                                 <div className="w-full max-w-md">
-                                    {/* Removed the Dice Prophet heading */}
                                     <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden">
                                         <div className="flex flex-col items-center mb-2">
                                             <p className="text-sm opacity-70">Score</p>
@@ -487,10 +493,10 @@
                                             <p className="text-2xl font-semibold">{timeLeft}s</p>
                                         </div>
                                         {state.activeBonus === 'Safe Zone' && (
-                                            <div className="absolute top-0 left-0 w-full h-1 bg-green-500 animate-pulse" />
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-[#990D35] animate-pulse" />
                                         )}
                                         {state.isTimeFreezeActive && (
-                                            <div className="absolute inset-0 bg-blue-500 bg-opacity-50 flex items-center justify-center">
+                                            <div className="absolute inset-0 bg-[#FCD581] bg-opacity-50 flex items-center justify-center">
                                                 <p className="text-2xl font-bold animate-pulse">Time Freeze!</p>
                                             </div>
                                         )}
@@ -501,7 +507,7 @@
                                             <span className="font-semibold">Streak: {state.streak}</span>
                                         </div>
                                         {state.activeBonus === 'Safe Zone' && (
-                                            <div className="bg-green-500 bg-opacity-80 rounded-xl py-1 px-3 flex items-center">
+                                            <div className="bg-[#990D35] bg-opacity-80 rounded-xl py-1 px-3 flex items-center">
                                                 <i className="fas fa-shield-alt mr-1"></i>
                                                 <span className="font-semibold">Safe Zone ({state.safeZoneRolls})</span>
                                             </div>
@@ -510,26 +516,26 @@
                                 </div>
 
                                 <div className="flex justify-center items-center space-x-4 my-8">
-                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-purple-700 transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
+                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
                                         {state.dice1}
                                     </div>
-                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-purple-700 transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
+                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
                                         {state.dice2}
                                     </div>
                                 </div>
 
                                 <div className="w-full max-w-md space-y-4 mb-8">
                                     <button
-                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'} active:bg-red-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FFF8E8]' : 'bg-[#D52941] hover:bg-[#990D35]'} active:bg-[#990D35] text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('less', state.gameState === 'allIn')}
-                                        disabled={state.isRolling}
+                                        disabled={state.isRolling || state.buttonsDisabled}
                                     >
                                         <i className="fas fa-arrow-down mr-2"></i> {state.gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
                                     </button>
                                     <button
-                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'} active:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FFF8E8]' : 'bg-[#D52941] hover:bg-[#990D35]'} active:bg-[#990D35] text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('more', state.gameState === 'allIn')}
-                                        disabled={state.isRolling}
+                                        disabled={state.isRolling || state.buttonsDisabled}
                                     >
                                         <i className="fas fa-arrow-up mr-2"></i> {state.gameState === 'allIn' ? 'All-In: More than 7' : 'More than 7'}
                                     </button>
@@ -539,12 +545,12 @@
                     case 'gameOver':
                         return (
                             <div className="text-center space-y-6">
-                                <div className="text-5xl font-bold mb-6 text-yellow-300 fade-in">Game Over!</div>
+                                <div className="text-5xl font-bold mb-6 text-[#D52941] fade-in">Game Over!</div>
                                 <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
                                 <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="px-8 py-4 bg-[#D52941] text-white rounded-full hover:bg-[#990D35] transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
                                 >
                                     Play Again
                                 </button>
@@ -557,9 +563,16 @@
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4">
-                    {/* Removed the outer Dice Prophet heading */}
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent()}
+                    {state.showAllInPopup && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-2xl p-6 text-center animate-pulse">
+                                <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
+                                <p className="mt-4 text-xl">Double or Nothing!</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
