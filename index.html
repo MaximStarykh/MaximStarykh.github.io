@@ -64,6 +64,16 @@
                 box-shadow: 0 0 20px #80d0ff;
             }
         }
+        .shadow-custom {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .all-in-popup {
+            animation: fadeInOut 2s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-gradient-game text-black min-h-screen">
@@ -162,6 +172,7 @@
             isTimeFreezeActive: false,
             buttonsDisabled: false,
             showAllInPopup: false,
+            showGameOverScreen: false,
         };
 
         const gameReducer = (state, action) => {
@@ -210,12 +221,14 @@
                     return { ...state, showAllInPopup: true };
                 case 'HIDE_ALLIN_POPUP':
                     return { ...state, showAllInPopup: false };
+                case 'SHOW_GAME_OVER_SCREEN':
+                    return { ...state, showGameOverScreen: true };
                 default:
                     return state;
             }
         };
 
-        // Tutorial Component with Centered Text
+        // Tutorial Component with Centered Text and Button Color Adjustments
         const Tutorial = ({ onComplete }) => {
             const [currentSlide, setCurrentSlide] = useState(0);
             const slides = [
@@ -268,6 +281,10 @@
 
             const touchStartX = useRef(0);
 
+            // Button Colors
+            const buttonColor = currentSlide < 2 ? 'bg-[#D52941]' : 'bg-[#D52941]';
+            const buttonHoverColor = currentSlide < 2 ? 'hover:bg-[#990D35]' : 'hover:bg-[#990D35]';
+
             return (
                 <div
                     className="fixed inset-0 bg-gradient-game flex flex-col items-center justify-between z-50"
@@ -281,14 +298,14 @@
                         {currentSlide === slides.length - 1 ? (
                             <button
                                 onClick={onComplete}
-                                className="w-full py-4 bg-[#FCD581] text-[#990D35] rounded-full hover:bg-[#FFF8E8] transition-colors duration-200 font-bold text-2xl"
+                                className={`w-full py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Start Game
                             </button>
                         ) : (
                             <button
                                 onClick={() => setCurrentSlide(prev => prev + 1)}
-                                className="w-full py-4 bg-[#D52941] text-white rounded-full hover:bg-[#990D35] transition-colors duration-200 font-bold text-2xl"
+                                className={`w-full py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Next
                             </button>
@@ -377,6 +394,44 @@
                 }
             }, [state.isTimeFreezeActive, freezeTimer]);
 
+            useEffect(() => {
+                if (state.gameState === 'gameOver') {
+                    if (state.score > state.highScore) {
+                        dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
+                        saveHighScore(state.score);
+                    }
+                }
+            }, [state.gameState, state.score, state.highScore]);
+
+            useEffect(() => {
+                if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
+                    const timeout = setTimeout(() => {
+                        dispatch({ type: 'SHOW_GAME_OVER_SCREEN' });
+                    }, 2000);
+
+                    return () => clearTimeout(timeout);
+                }
+            }, [state.gameState, state.showGameOverScreen]);
+
+            const saveHighScore = useCallback(async (score) => {
+                try {
+                    await new Promise((resolve, reject) => {
+                        tg.CloudStorage.setItem("highScore", score.toString(), (error) => {
+                            if (error) reject(error);
+                            else resolve();
+                        });
+                    });
+                } catch (error) {
+                    console.error("Failed to save high score:", error);
+                }
+            }, []);
+
+            const startGame = useCallback(() => {
+                setShowTutorial(false);
+                resetTimer();
+                dispatch({ type: 'START_GAME' });
+            }, [resetTimer]);
+
             const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
                 playDiceRoll();
@@ -457,35 +512,15 @@
                 }
             }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
 
-            useEffect(() => {
-                if (state.gameState === 'gameOver') {
-                    if (state.score > state.highScore) {
-                        dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
-                        saveHighScore(state.score);
-                    }
-                }
-            }, [state.gameState, state.score, state.highScore]);
-
-            const saveHighScore = useCallback(async (score) => {
-                try {
-                    await new Promise((resolve, reject) => {
-                        tg.CloudStorage.setItem("highScore", score.toString(), (error) => {
-                            if (error) reject(error);
-                            else resolve();
-                        });
-                    });
-                } catch (error) {
-                    console.error("Failed to save high score:", error);
-                }
-            }, []);
-
-            const startGame = useCallback(() => {
-                setShowTutorial(false);
-                resetTimer();
-                dispatch({ type: 'START_GAME' });
-            }, [resetTimer]);
-
             const renderGameContent = () => {
+                if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
+                    return (
+                        <div className="flex flex-col items-center justify-center h-screen bg-gradient-game text-black p-4">
+                            <p className="text-3xl font-bold">Calculating Results...</p>
+                        </div>
+                    );
+                }
+
                 switch (state.gameState) {
                     case 'ready':
                         return (
@@ -503,27 +538,30 @@
                         return (
                             <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
                                 <div className="w-full max-w-md">
-                                    <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden">
+                                    <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
                                         <div className="flex flex-col items-center mb-2">
                                             <p className="text-sm opacity-70">Score</p>
                                             <p className="text-5xl font-bold">{Math.floor(state.score)}</p>
                                         </div>
-                                        <div className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${state.isTimeFreezeActive ? 'frozen' : ''}`}>
+                                        <div
+                                            className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${
+                                                state.isTimeFreezeActive ? 'frozen' : ''
+                                            } shadow-custom`}
+                                        >
                                             <i className="far fa-clock mr-2"></i>
-                                            <p className="text-2xl font-semibold">{timeLeft}s</p>
+                                            <p className="text-2xl font-semibold">{timeLeft}s {state.isTimeFreezeActive && '❄️'}</p>
                                         </div>
                                         {state.activeBonus === 'Safe Zone' && (
                                             <div className="absolute top-0 left-0 w-full h-1 bg-[#990D35] animate-pulse" />
                                         )}
-                                        {/* Removed the overlay for Time Freeze as we added animation to the timer */}
                                     </div>
                                     <div className="flex justify-center items-center space-x-2 mb-4">
-                                        <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center">
+                                        <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
                                             <i className="fas fa-bolt mr-1"></i>
                                             <span className="font-semibold">Streak: {state.streak}</span>
                                         </div>
                                         {state.activeBonus === 'Safe Zone' && (
-                                            <div className="bg-[#990D35] bg-opacity-80 rounded-xl py-1 px-3 flex items-center">
+                                            <div className="bg-[#990D35] bg-opacity-80 rounded-xl py-1 px-3 flex items-center shadow-custom">
                                                 <i className="fas fa-shield-alt mr-1"></i>
                                                 <span className="font-semibold">Safe Zone ({state.safeZoneRolls})</span>
                                             </div>
@@ -532,10 +570,10 @@
                                 </div>
 
                                 <div className="flex justify-center items-center space-x-4 my-8">
-                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
+                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 shadow-custom ${state.isRolling ? 'animate-bounce' : ''}`}>
                                         {state.dice1}
                                     </div>
-                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 ${state.isRolling ? 'animate-bounce' : ''}`}>
+                                    <div className={`w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-6xl font-bold text-[#990D35] transition-all duration-300 shadow-custom ${state.isRolling ? 'animate-bounce' : ''}`}>
                                         {state.dice2}
                                     </div>
                                 </div>
@@ -543,8 +581,8 @@
                                 <div className="w-full max-w-md space-y-4 mb-8">
                                     <button
                                         className={`w-full py-4 ${
-                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-red-500 hover:bg-red-600'
-                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-green-500 hover:bg-green-600'
+                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                                         onClick={() => processPrediction('less', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
                                     >
@@ -552,8 +590,8 @@
                                     </button>
                                     <button
                                         className={`w-full py-4 ${
-                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-green-500 hover:bg-green-600'
-                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-red-500 hover:bg-red-600'
+                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                                         onClick={() => processPrediction('more', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
                                     >
@@ -586,8 +624,8 @@
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent()}
                     {state.showAllInPopup && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white rounded-2xl p-6 text-center animate-pulse">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => dispatch({ type: 'HIDE_ALLIN_POPUP' })}>
+                            <div className="bg-white rounded-2xl p-6 text-center all-in-popup shadow-custom">
                                 <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
                                 <p className="mt-4 text-xl">Double or Nothing!</p>
                             </div>
