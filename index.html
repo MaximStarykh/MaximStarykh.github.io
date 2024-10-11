@@ -53,6 +53,17 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
+        .frozen {
+            animation: frozenGlow 1s ease-in-out infinite alternate;
+        }
+        @keyframes frozenGlow {
+            from {
+                box-shadow: 0 0 10px #80d0ff;
+            }
+            to {
+                box-shadow: 0 0 20px #80d0ff;
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-game text-black min-h-screen">
@@ -70,6 +81,7 @@
         const SAFE_ZONE_ROLLS = 3;
         const TIME_FREEZE_DURATION = 5;
         const MAX_MULTIPLIER = 12;
+        const INITIAL_TIME = 60;
 
         // Sound effects
         const useSound = () => {
@@ -121,10 +133,17 @@
 
             const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
-                setTimeout(() => setIsFrozen(false), TIME_FREEZE_DURATION * 1000);
+                setTimeout(() => {
+                    setIsFrozen(false);
+                }, TIME_FREEZE_DURATION * 1000);
             }, []);
 
-            return { timeLeft, freezeTimer, isFrozen };
+            const resetTimer = useCallback(() => {
+                setTimeLeft(initialTime);
+                setIsFrozen(false);
+            }, [initialTime]);
+
+            return { timeLeft, freezeTimer, isFrozen, resetTimer };
         };
 
         // Game reducer
@@ -310,7 +329,7 @@
 
         function DiceProphet() {
             const [state, dispatch] = useReducer(gameReducer, initialState);
-            const { timeLeft, freezeTimer, isFrozen } = useGameTimer(60);
+            const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(INITIAL_TIME);
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
             const [showTutorial, setShowTutorial] = useState(true);
 
@@ -462,8 +481,9 @@
 
             const startGame = useCallback(() => {
                 setShowTutorial(false);
+                resetTimer();
                 dispatch({ type: 'START_GAME' });
-            }, []);
+            }, [resetTimer]);
 
             const renderGameContent = () => {
                 switch (state.gameState) {
@@ -488,18 +508,14 @@
                                             <p className="text-sm opacity-70">Score</p>
                                             <p className="text-5xl font-bold">{Math.floor(state.score)}</p>
                                         </div>
-                                        <div className="flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2">
+                                        <div className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${state.isTimeFreezeActive ? 'frozen' : ''}`}>
                                             <i className="far fa-clock mr-2"></i>
                                             <p className="text-2xl font-semibold">{timeLeft}s</p>
                                         </div>
                                         {state.activeBonus === 'Safe Zone' && (
                                             <div className="absolute top-0 left-0 w-full h-1 bg-[#990D35] animate-pulse" />
                                         )}
-                                        {state.isTimeFreezeActive && (
-                                            <div className="absolute inset-0 bg-[#FCD581] bg-opacity-50 flex items-center justify-center">
-                                                <p className="text-2xl font-bold animate-pulse">Time Freeze!</p>
-                                            </div>
-                                        )}
+                                        {/* Removed the overlay for Time Freeze as we added animation to the timer */}
                                     </div>
                                     <div className="flex justify-center items-center space-x-2 mb-4">
                                         <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center">
@@ -526,14 +542,18 @@
 
                                 <div className="w-full max-w-md space-y-4 mb-8">
                                     <button
-                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FFF8E8]' : 'bg-[#D52941] hover:bg-[#990D35]'} active:bg-[#990D35] text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                        className={`w-full py-4 ${
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-red-500 hover:bg-red-600'
+                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('less', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
                                     >
                                         <i className="fas fa-arrow-down mr-2"></i> {state.gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
                                     </button>
                                     <button
-                                        className={`w-full py-4 ${state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FFF8E8]' : 'bg-[#D52941] hover:bg-[#990D35]'} active:bg-[#990D35] text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
+                                        className={`w-full py-4 ${
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581] hover:bg-[#FCD581]' : 'bg-green-500 hover:bg-green-600'
+                                        } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150`}
                                         onClick={() => processPrediction('more', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
                                     >
