@@ -55,7 +55,6 @@
         }
         .frozen {
             animation: frozenGlow 1s ease-in-out infinite alternate;
-            animation-duration: 5s; /* Make the animation last for 5 seconds */
         }
         @keyframes frozenGlow {
             from {
@@ -81,29 +80,22 @@
             display: grid;
             place-items: center;
             perspective: 1000px;
-            width: 80px;
-            height: 80px;
         }
 
         .dice {
             position: relative;
-            width: 80px;
-            height: 80px;
+            width: 20vw;
+            height: 20vw;
+            max-width: 100px;
+            max-height: 100px;
             transform-style: preserve-3d;
-            transition: transform 1s ease;
+            transition: 1s ease;
         }
 
         @keyframes rolling {
-            from {
-                transform: rotateX(0deg) rotateY(0deg);
+            50% {
+                transform: rotateX(455deg) rotateY(455deg);
             }
-            to {
-                transform: rotateX(360deg) rotateY(360deg);
-            }
-        }
-
-        .rolling-animation {
-            animation: rolling 1.25s ease-in-out;
         }
 
         .face {
@@ -205,27 +197,6 @@
                         36px 36px;
         }
 
-        /* Responsive adjustments */
-        @media (max-width: 640px) {
-            .dice-container {
-                width: 60px;
-                height: 60px;
-            }
-            .dice {
-                width: 60px;
-                height: 60px;
-            }
-            .face::after {
-                width: 10px;
-                height: 10px;
-            }
-            .front::after {
-                width: 15px;
-                height: 15px;
-                margin: -7.5px 0 0 -7.5px;
-            }
-            /* Adjust other faces accordingly */
-        }
     </style>
 </head>
 <body class="bg-gradient-game text-black min-h-screen">
@@ -450,14 +421,14 @@
                         {currentSlide === slides.length - 1 ? (
                             <button
                                 onClick={onComplete}
-                                className={`w-full py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
+                                className={`w-4/5 max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Start Game
                             </button>
                         ) : (
                             <button
                                 onClick={() => setCurrentSlide(prev => prev + 1)}
-                                className={`w-full py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
+                                className={`w-4/5 max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Next
                             </button>
@@ -473,12 +444,11 @@
 
             useEffect(() => {
                 if (rolling) {
-                    diceRef.current.classList.add('rolling-animation');
-                    diceRef.current.style.transform = 'rotateX(360deg) rotateY(360deg)';
+                    diceRef.current.style.animation = 'rolling 1.25s';
                     setTimeout(() => {
-                        diceRef.current.classList.remove('rolling-animation');
+                        diceRef.current.style.animation = 'none';
                         setDiceFace(number);
-                    }, 1250); // Match the dice animation duration (1.25s)
+                    }, 1250);
                 } else {
                     setDiceFace(number);
                 }
@@ -644,7 +614,6 @@
 
             const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
-                dispatch({ type: 'DISABLE_BUTTONS' }); // Disable buttons during dice roll
                 playDiceRoll();
                 tg.HapticFeedback.impactOccurred('medium');
                 return new Promise(resolve => {
@@ -652,9 +621,8 @@
                         const newDice1 = Math.floor(Math.random() * 6) + 1;
                         const newDice2 = Math.floor(Math.random() * 6) + 1;
                         dispatch({ type: 'ROLL_DICE', dice1: newDice1, dice2: newDice2 });
-                        dispatch({ type: 'ENABLE_BUTTONS' }); // Re-enable buttons after dice roll
                         resolve({ dice1: newDice1, dice2: newDice2 });
-                    }, 1250); // Match the dice animation duration (1.25s)
+                    }, 1250); // Match the dice animation duration
                 });
             }, [playDiceRoll]);
 
@@ -726,9 +694,10 @@
 
             const renderGameContent = () => {
                 if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
+                    // Show the last game state during the 2-second pause
                     return (
-                        <div className="flex flex-col items-center justify-center h-screen bg-gradient-game text-black p-4">
-                            {/* Removed "Calculating Results..." */}
+                        <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
+                            {/* ...same as 'playing' state but with interactions disabled */}
                         </div>
                     );
                 }
@@ -739,7 +708,7 @@
                             <div className="text-center">
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-[#FCD581] text-[#990D35] rounded-full hover:bg-[#FFF8E8] transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="w-4/5 max-w-md px-8 py-4 bg-[#FCD581] text-[#990D35] rounded-full transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
                                 >
                                     Start Game
                                 </button>
@@ -786,10 +755,10 @@
                                     <Dice number={state.dice2} rolling={state.isRolling} />
                                 </div>
 
-                                <div className="w-full max-w-md space-y-4 mb-8">
+                                <div className="w-full flex flex-col items-center space-y-4 mb-8">
                                     <button
-                                        className={`w-full py-4 ${
-                                            state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500 hover:bg-green-600'
+                                        className={`w-4/5 max-w-md py-4 ${
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500'
                                         } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                                         onClick={() => processPrediction('less', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
@@ -797,8 +766,8 @@
                                         <i className="fas fa-arrow-down mr-2"></i> {state.gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
                                     </button>
                                     <button
-                                        className={`w-full py-4 ${
-                                            state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500 hover:bg-red-600'
+                                        className={`w-4/5 max-w-md py-4 ${
+                                            state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500'
                                         } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                                         onClick={() => processPrediction('more', state.gameState === 'allIn')}
                                         disabled={state.isRolling || state.buttonsDisabled}
@@ -816,7 +785,7 @@
                                 <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
                                 <button
                                     onClick={startGame}
-                                    className="px-8 py-4 bg-[#D52941] text-white rounded-full transition-colors duration-200 text-2xl font-bold shadow-lg pulse-animation"
+                                    className="w-4/5 max-w-md px-8 py-4 bg-[#D52941] text-white rounded-full text-2xl font-bold shadow-lg pulse-animation"
                                 >
                                     Play Again
                                 </button>
