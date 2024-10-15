@@ -35,3 +35,6 @@ function useSound() {
         playBonus: () => playSound(660, 0.3)
     };
 }
+
+// Assign to global scope
+window.useSound = useSound;

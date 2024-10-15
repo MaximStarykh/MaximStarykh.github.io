@@ -64,3 +64,6 @@ function Dice({ number, rolling }) {
         </div>
     );
 }
+
+// Assign to global scope
+window.Dice = Dice;

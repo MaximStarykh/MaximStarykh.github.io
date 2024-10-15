@@ -54,7 +54,7 @@ function gameReducer(state, action) {
             return {
                 ...state,
                 activeBonus: action.bonus,
-                safeZoneRolls: action.bonus === 'Safe Zone' ? SAFE_ZONE_ROLLS : state.safeZoneRolls,
+                safeZoneRolls: action.bonus === 'Safe Zone' ? window.SAFE_ZONE_ROLLS : state.safeZoneRolls,
                 isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
             };
         case 'DEACTIVATE_BONUS':
@@ -79,3 +79,7 @@ function gameReducer(state, action) {
             return state;
     }
 }
+
+// Assign to global scope
+window.gameReducer = gameReducer;
+window.initialState = initialState;

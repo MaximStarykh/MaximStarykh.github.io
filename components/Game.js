@@ -2,16 +2,23 @@
 
 const { useState, useEffect, useReducer, useCallback } = React;
 
-// Import necessary components and utilities
-// For this example, inline definitions will be used
-
 /**
  * Main Game component that handles game logic and rendering
  */
 function Game() {
-    const [state, dispatch] = useReducer(gameReducer, initialState);
-    const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(INITIAL_TIME);
-    const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
+    const [state, dispatch] = useReducer(window.gameReducer, window.initialState);
+    const { timeLeft, freezeTimer, isFrozen, resetTimer } = window.useGameTimer(window.INITIAL_TIME);
+    const { playDiceRoll, playCorrect, playIncorrect, playBonus } = window.useSound();
+
+    const tg = window.Telegram.WebApp;
+
+    const {
+        BASE_POINTS,
+        BONUS_ACTIVATION_ROLLS,
+        BONUS_ACTIVATION_CHANCE,
+        BONUS_TYPE_CHANCE,
+        TIME_FREEZE_DURATION,
+    } = window;
 
     useEffect(() => {
         // Fetch high score on component mount
@@ -38,7 +45,7 @@ function Game() {
                 dispatch({ type: 'DEACTIVATE_BONUS' });
             }, TIME_FREEZE_DURATION * 1000);
         }
-    }, [state.isTimeFreezeActive, freezeTimer]);
+    }, [state.isTimeFreezeActive, freezeTimer, TIME_FREEZE_DURATION]);
 
     useEffect(() => {
         // Update high score on game over
@@ -310,3 +317,6 @@ function Game() {
         </div>
     );
 }
+
+// Assign to global scope
+window.Game = Game;

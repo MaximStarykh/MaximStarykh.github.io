@@ -92,3 +92,6 @@ function Tutorial({ onComplete }) {
         </div>
     );
 }
+
+// Assign to global scope
+window.Tutorial = Tutorial;

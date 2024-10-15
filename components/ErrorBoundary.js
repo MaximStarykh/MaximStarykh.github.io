@@ -35,3 +35,6 @@ class ErrorBoundary extends Component {
         return this.props.children;
     }
 }
+
+// Assign to global scope
+window.ErrorBoundary = ErrorBoundary;

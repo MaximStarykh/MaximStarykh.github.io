@@ -12,6 +12,8 @@ function useGameTimer(initialTime) {
     const [isFrozen, setIsFrozen] = useState(false);
     const timerRef = useRef(null);
 
+    const { TIME_FREEZE_DURATION } = window;
+
     useEffect(() => {
         if (isFrozen) {
             clearInterval(timerRef.current);
@@ -28,7 +30,7 @@ function useGameTimer(initialTime) {
         setTimeout(() => {
             setIsFrozen(false);
         }, TIME_FREEZE_DURATION * 1000);
-    }, []);
+    }, [TIME_FREEZE_DURATION]);
 
     const resetTimer = useCallback(() => {
         setTimeLeft(initialTime);
@@ -37,3 +39,6 @@ function useGameTimer(initialTime) {
 
     return { timeLeft, freezeTimer, isFrozen, resetTimer };
 }
+
+// Assign to global scope
+window.useGameTimer = useGameTimer;
