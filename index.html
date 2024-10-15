@@ -24,14 +24,185 @@
 
     <!-- Custom Styles -->
     <style>
-        /* ... [Existing CSS styles remain unchanged] ... */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #FFF8E8;
+        }
+        .bg-gradient-game {
+            background: linear-gradient(to bottom, #FFF8E8, #FFFFFF);
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .frozen {
+            animation: frozenGlow 1s ease-in-out infinite alternate;
+        }
+        @keyframes frozenGlow {
+            from {
+                box-shadow: 0 0 10px #80d0ff;
+            }
+            to {
+                box-shadow: 0 0 20px #80d0ff;
+            }
+        }
+        .shadow-custom {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .all-in-popup {
+            animation: fadeInOut 2s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Dice Styles */
+        .dice-container {
+            display: grid;
+            place-items: center;
+            perspective: 1000px;
+        }
+
+        .dice {
+            position: relative;
+            width: 25vw;
+            height: 25vw;
+            max-width: 120px;
+            max-height: 120px;
+            transform-style: preserve-3d;
+            transition: transform 1s ease;
+        }
+
+        .dice.rolling {
+            animation: rolling 1.25s ease-in-out;
+        }
+
+        @keyframes rolling {
+            from {
+                transform: rotateX(0deg) rotateY(0deg);
+            }
+            to {
+                transform: rotateX(720deg) rotateY(720deg);
+            }
+        }
+
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            border: 2px solid #f6f3f0;
+            transform-style: preserve-3d;
+            background: linear-gradient(
+                145deg, #dddbd8, #fff
+            );
+        }
+
+        .face::before {
+            position: absolute;
+            content: '';
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            background: #f6f3f0;
+            transform: translateZ(-1px);
+        }
+
+        .face::after {
+            position: absolute;
+            content: '';
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #131210;
+        }
+
+        .front {
+            transform: translateZ(40px);
+        }
+
+        .back {
+            transform: rotateX(180deg) translateZ(40px);
+        }
+
+        .top {
+            transform: rotateX(90deg) translateZ(40px);
+        }
+
+        .bottom {
+            transform: rotateX(-90deg) translateZ(40px);
+        }
+
+        .right {
+            transform: rotateY(90deg) translateZ(40px);
+        }
+
+        .left {
+            transform: rotateY(-90deg) translateZ(40px);
+        }
+
+        .front::after {
+            width: 20px;
+            height: 20px;
+            background: #f63330;
+            margin: -10px 0 0 -10px;
+        }
+
+        .back::after {
+            margin: -23px 0 0 -20px;
+            box-shadow: 28px 0,
+                        0 18px,
+                        28px 18px,
+                        0 36px,
+                        28px 36px;
+        }
+
+        .top::after {
+            margin: -20px 0 0 -20px;
+            box-shadow: 28px 28px;
+        }
+
+        .bottom::after {
+            margin: -24px 0 0 -24px;
+            box-shadow: 18px 18px,
+                        36px 36px,
+                        36px 0,
+                        0 36px;
+        }
+
+        .right::after {
+            margin: -20px 0 0 -20px;
+            box-shadow: 28px 0,
+            0 28px,
+            28px 28px;
+        }
+
+        .left::after {
+            margin: -23px 0 0 -23px;
+            box-shadow: 18px 18px,
+                        36px 36px;
+        }
+
     </style>
 </head>
 <body class="bg-gradient-game text-black min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
-        // Import React Hooks
         const { useState, useEffect, useCallback, useReducer, useRef } = React;
         const tg = window.Telegram.WebApp;
 
@@ -48,36 +219,28 @@
             DICE_ROLL_DURATION: 1250, // Duration in milliseconds
         };
 
-        // Sound effects hook
+        // Sound effects
         const useSound = () => {
             const audioContextRef = useRef(null);
-            const soundCache = useRef({});
 
             useEffect(() => {
-                // Initialize Audio Context
                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
             }, []);
 
-            // Function to play a sound using OscillatorNode
-            const playSound = useCallback((frequency, duration, type = 'sine') => {
+            const playSound = useCallback((frequency, duration) => {
                 const audioContext = audioContextRef.current;
-
                 if (!audioContext) return;
 
                 try {
                     const oscillator = audioContext.createOscillator();
                     const gainNode = audioContext.createGain();
-
-                    oscillator.type = type;
+                    oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-
                     oscillator.connect(gainNode);
                     gainNode.connect(audioContext.destination);
-
                     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
                     gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
                     gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration - 0.01);
-
                     oscillator.start();
                     oscillator.stop(audioContext.currentTime + duration);
                 } catch (error) {
@@ -89,7 +252,7 @@
                 playDiceRoll: () => playSound(300, 0.3),
                 playCorrect: () => playSound(440, 0.2),
                 playIncorrect: () => playSound(220, 0.2),
-                playBonus: () => playSound(660, 0.3),
+                playBonus: () => playSound(660, 0.3)
             };
         };
 
@@ -100,7 +263,6 @@
             const timerRef = useRef(null);
 
             useEffect(() => {
-                // Timer logic
                 if (isFrozen) {
                     clearInterval(timerRef.current);
                 } else {
@@ -113,9 +275,10 @@
 
             const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
-                setTimeout(() => {
+                const freezeTimeout = setTimeout(() => {
                     setIsFrozen(false);
                 }, GAME_CONFIG.TIME_FREEZE_DURATION * 1000);
+                return () => clearTimeout(freezeTimeout);
             }, []);
 
             const resetTimer = useCallback(() => {
@@ -126,7 +289,7 @@
             return { timeLeft, freezeTimer, isFrozen, resetTimer };
         };
 
-        // Game reducer and initial state
+        // Game reducer
         const initialState = {
             dice1: 1,
             dice2: 1,
@@ -286,10 +449,91 @@
             );
         };
 
-        // Tutorial Component
+        // Tutorial Component (unchanged)
         const Tutorial = ({ onComplete }) => {
-            // ... [Existing Tutorial component code remains unchanged] ...
-            // Add comments if necessary
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const slides = [
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Welcome to Dice Prophet!</h2>
+                    <p className="mb-6 text-xl">Predict the future, master the dice, and become a legend!</p>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-dice text-[#FCD581] mr-2"></i> Guess if the sum will be less or more than 7</p>
+                        <p><i className="fas fa-chart-line text-[#990D35] mr-2"></i> Build your streak for bigger scores</p>
+                        <p><i className="fas fa-exclamation-triangle text-[#D52941] mr-2"></i> But beware of the dreaded 7!</p>
+                    </div>
+                </div>,
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Power-Ups and Bonuses</h2>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-shield-alt text-[#990D35] mr-2"></i> Safe Zone: Protects you from losing your streak</p>
+                        <p><i className="fas fa-clock text-[#FCD581] mr-2"></i> Time Freeze: Stops the clock for extra gaming time</p>
+                        <p><i className="fas fa-gift text-[#D52941] mr-2"></i> Look out for surprise bonuses to boost your score!</p>
+                    </div>
+                </div>,
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <h2 className="text-4xl font-bold mb-6 text-[#D52941]">All or Nothing!</h2>
+                    <p className="mb-6 text-xl">When time runs out, you have one last chance to double your score!</p>
+                    <div className="space-y-4">
+                        <p><i className="fas fa-trophy text-[#FCD581] mr-2"></i> Go all-in for a shot at glory</p>
+                        <p><i className="fas fa-skull-crossbones text-[#990D35] mr-2"></i> But be careful, you could lose it all!</p>
+                        <p><i className="fas fa-star text-[#D52941] mr-2"></i> Do you have what it takes to be a Dice Prophet?</p>
+                    </div>
+                </div>
+            ];
+
+            const handleTouchStart = (e) => {
+                touchStartX.current = e.changedTouches[0].screenX;
+            };
+
+            const handleTouchEnd = (e) => {
+                const touchEndX = e.changedTouches[0].screenX;
+                if (touchStartX.current - touchEndX > 50) {
+                    // Swipe left
+                    if (currentSlide < slides.length - 1) {
+                        setCurrentSlide(prev => prev + 1);
+                    }
+                } else if (touchEndX - touchStartX.current > 50) {
+                    // Swipe right
+                    if (currentSlide > 0) {
+                        setCurrentSlide(prev => prev - 1);
+                    }
+                }
+            };
+
+            const touchStartX = useRef(0);
+
+            // Button Colors
+            const buttonColor = 'bg-[#D52941]';
+            const buttonHoverColor = 'hover:bg-[#990D35]';
+
+            return (
+                <div
+                    className="fixed inset-0 bg-gradient-game flex flex-col items-center justify-between z-50"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <div className="flex-grow flex items-center justify-center w-full">
+                        {slides[currentSlide]}
+                    </div>
+                    <div className="w-full px-4 mb-8 flex justify-center">
+                        {currentSlide === slides.length - 1 ? (
+                            <button
+                                onClick={onComplete}
+                                className={`w-full max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
+                            >
+                                Start Game
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setCurrentSlide(prev => prev + 1)}
+                                className={`w-full max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
+                            >
+                                Next
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
         };
 
         // Game Header Component
@@ -324,14 +568,6 @@
             </div>
         );
 
-        // Game Board Component
-        const GameBoard = ({ dice1, dice2, isRolling }) => (
-            <div className="flex justify-center items-center space-x-8 my-8">
-                <Dice number={dice1} rolling={isRolling} />
-                <Dice number={dice2} rolling={isRolling} />
-            </div>
-        );
-
         // Game Controls Component
         const GameControls = ({ onPredict, gameState, isRolling, buttonsDisabled }) => (
             <div className="w-full flex flex-col items-center space-y-4 mb-8">
@@ -358,10 +594,7 @@
 
         // All-In Popup Component
         const AllInPopup = ({ onHide }) => (
-            <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                onClick={onHide}
-            >
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onHide}>
                 <div className="bg-white rounded-2xl p-6 text-center all-in-popup shadow-custom">
                     <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
                     <p className="mt-4 text-xl">Double or Nothing!</p>
@@ -391,7 +624,6 @@
             const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
             const [showTutorial, setShowTutorial] = useState(true);
 
-            // Initialize Telegram WebApp and fetch high score
             useEffect(() => {
                 tg.ready();
                 tg.expand();
@@ -416,19 +648,18 @@
                 fetchHighScore();
             }, []);
 
-            // Handle game state transitions based on timer
             useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
                     dispatch({ type: 'DISABLE_BUTTONS' });
                     dispatch({ type: 'SHOW_ALLIN_POPUP' });
-                    setTimeout(() => {
+                    const timeoutId = setTimeout(() => {
                         dispatch({ type: 'HIDE_ALLIN_POPUP' });
                         dispatch({ type: 'END_GAME' });
-                    }, 2000);
+                    }, 2000); // Show popup for 2 seconds
+                    return () => clearTimeout(timeoutId);
                 }
             }, [timeLeft, state.gameState]);
 
-            // Handle Time Freeze bonus activation
             useEffect(() => {
                 if (state.isTimeFreezeActive) {
                     freezeTimer();
@@ -439,7 +670,6 @@
                 }
             }, [state.isTimeFreezeActive, freezeTimer]);
 
-            // Update high score if needed
             useEffect(() => {
                 if (state.gameState === 'gameOver') {
                     if (state.score > state.highScore) {
@@ -449,7 +679,6 @@
                 }
             }, [state.gameState, state.score, state.highScore]);
 
-            // Show Game Over screen after a delay
             useEffect(() => {
                 if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
                     const timeoutId = setTimeout(() => {
@@ -459,7 +688,6 @@
                 }
             }, [state.gameState, state.showGameOverScreen]);
 
-            // Save high score to CloudStorage
             const saveHighScore = useCallback(async (score) => {
                 try {
                     await new Promise((resolve, reject) => {
@@ -473,14 +701,12 @@
                 }
             }, []);
 
-            // Start a new game
             const startGame = useCallback(() => {
                 setShowTutorial(false);
                 resetTimer();
                 dispatch({ type: 'START_GAME' });
             }, [resetTimer]);
 
-            // Roll the dice with animation and return the result
             const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
                 playDiceRoll();
@@ -495,7 +721,6 @@
                 });
             }, [playDiceRoll]);
 
-            // Process user's prediction
             const processPrediction = useCallback(async (pred) => {
                 if (state.buttonsDisabled || state.isRolling) return;
 
@@ -527,7 +752,6 @@
                     tg.HapticFeedback.notificationOccurred('error');
                 }
 
-                // Handle bonuses
                 if (state.activeBonus === 'Safe Zone' && !isAllIn) {
                     dispatch({ type: 'DECREASE_SAFE_ZONE' });
                     if (state.safeZoneRolls <= 1) {
@@ -544,7 +768,6 @@
                     isCorrect: isCorrect,
                 });
 
-                // Activate bonuses periodically
                 if (!isAllIn && (state.rollCount + 1) % GAME_CONFIG.BONUS_ACTIVATION_ROLLS === 0 && !state.activeBonus) {
                     const bonusChance = Math.random();
                     if (bonusChance < GAME_CONFIG.BONUS_ACTIVATION_CHANCE) {
@@ -556,17 +779,14 @@
                 }
 
                 if (isAllIn) {
-                    // Wait to show the dice result before ending the game
                     setTimeout(() => {
                         dispatch({ type: 'GAME_OVER' });
                     }, 2000);
                 }
             }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
 
-            // Render game content based on game state
             const renderGameContent = () => {
                 if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
-                    // Show the last game state during the pause
                     return (
                         <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
                             {renderGame()}
@@ -602,7 +822,6 @@
                 }
             };
 
-            // Render the main game components
             const renderGame = () => (
                 <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
                     <GameHeader
@@ -612,11 +831,10 @@
                         activeBonus={state.activeBonus}
                         isTimeFreezeActive={state.isTimeFreezeActive}
                     />
-                    <GameBoard
-                        dice1={state.dice1}
-                        dice2={state.dice2}
-                        isRolling={state.isRolling}
-                    />
+                    <div className="flex justify-center items-center space-x-8 my-8">
+                        <Dice number={state.dice1} rolling={state.isRolling} />
+                        <Dice number={state.dice2} rolling={state.isRolling} />
+                    </div>
                     <GameControls
                         onPredict={processPrediction}
                         gameState={state.gameState}
@@ -637,7 +855,6 @@
             );
         }
 
-        // Render the App
         ReactDOM.render(
             <React.StrictMode>
                 <ErrorBoundary>
