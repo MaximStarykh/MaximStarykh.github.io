@@ -2,23 +2,32 @@
 
 const { useState, useEffect, useReducer, useCallback } = React;
 
+// Assign components, hooks, and utilities from window
+const Dice = window.Dice;
+const useSound = window.useSound;
+const useGameTimer = window.useGameTimer;
+const gameReducer = window.gameReducer;
+const initialState = window.initialState;
+
+const tg = window.Telegram.WebApp;
+
+const {
+    BASE_POINTS,
+    BONUS_ACTIVATION_ROLLS,
+    BONUS_ACTIVATION_CHANCE,
+    BONUS_TYPE_CHANCE,
+    TIME_FREEZE_DURATION,
+    SAFE_ZONE_ROLLS,
+    INITIAL_TIME,
+} = window;
+
 /**
  * Main Game component that handles game logic and rendering
  */
 function Game() {
-    const [state, dispatch] = useReducer(window.gameReducer, window.initialState);
-    const { timeLeft, freezeTimer, isFrozen, resetTimer } = window.useGameTimer(window.INITIAL_TIME);
-    const { playDiceRoll, playCorrect, playIncorrect, playBonus } = window.useSound();
-
-    const tg = window.Telegram.WebApp;
-
-    const {
-        BASE_POINTS,
-        BONUS_ACTIVATION_ROLLS,
-        BONUS_ACTIVATION_CHANCE,
-        BONUS_TYPE_CHANCE,
-        TIME_FREEZE_DURATION,
-    } = window;
+    const [state, dispatch] = useReducer(gameReducer, initialState);
+    const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(INITIAL_TIME);
+    const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
 
     useEffect(() => {
         // Fetch high score on component mount
@@ -45,7 +54,7 @@ function Game() {
                 dispatch({ type: 'DEACTIVATE_BONUS' });
             }, TIME_FREEZE_DURATION * 1000);
         }
-    }, [state.isTimeFreezeActive, freezeTimer, TIME_FREEZE_DURATION]);
+    }, [state.isTimeFreezeActive, freezeTimer]);
 
     useEffect(() => {
         // Update high score on game over

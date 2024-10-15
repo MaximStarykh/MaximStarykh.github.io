@@ -4,6 +4,11 @@ const { useState, useEffect } = React;
 const ReactDOM = window.ReactDOM;
 const tg = window.Telegram.WebApp;
 
+// Assign components from window
+const Tutorial = window.Tutorial;
+const Game = window.Game;
+const ErrorBoundary = window.ErrorBoundary;
+
 function App() {
     const [showTutorial, setShowTutorial] = useState(true);
 
