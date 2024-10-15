@@ -31,14 +31,6 @@
         .bg-gradient-game {
             background: linear-gradient(to bottom, #FFF8E8, #FFFFFF);
         }
-        .float-animation {
-            animation: float 3s ease-in-out infinite;
-        }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
         .fade-in {
             animation: fadeIn 0.5s ease-out;
         }
@@ -67,14 +59,12 @@
             0%, 100% { opacity: 0; }
             50% { opacity: 1; }
         }
-
         /* Dice Styles */
         .dice-container {
             display: grid;
             place-items: center;
             perspective: 1000px;
         }
-
         .dice {
             position: relative;
             width: 25vw;
@@ -84,11 +74,9 @@
             transform-style: preserve-3d;
             transition: transform 1s ease;
         }
-
         .dice.rolling {
             animation: rolling 1.25s ease-in-out;
         }
-
         @keyframes rolling {
             from {
                 transform: rotateX(0deg) rotateY(0deg);
@@ -97,7 +85,6 @@
                 transform: rotateX(720deg) rotateY(720deg);
             }
         }
-
         .face {
             position: absolute;
             width: 100%;
@@ -109,7 +96,6 @@
                 145deg, #dddbd8, #fff
             );
         }
-
         .face::before {
             position: absolute;
             content: '';
@@ -119,7 +105,6 @@
             background: #f6f3f0;
             transform: translateZ(-1px);
         }
-
         .face::after {
             position: absolute;
             content: '';
@@ -130,38 +115,30 @@
             border-radius: 50%;
             background: #131210;
         }
-
         .front {
             transform: translateZ(40px);
         }
-
         .back {
             transform: rotateX(180deg) translateZ(40px);
         }
-
         .top {
             transform: rotateX(90deg) translateZ(40px);
         }
-
         .bottom {
             transform: rotateX(-90deg) translateZ(40px);
         }
-
         .right {
             transform: rotateY(90deg) translateZ(40px);
         }
-
         .left {
             transform: rotateY(-90deg) translateZ(40px);
         }
-
         .front::after {
             width: 20px;
             height: 20px;
             background: #f63330;
             margin: -10px 0 0 -10px;
         }
-
         .back::after {
             margin: -23px 0 0 -20px;
             box-shadow: 28px 0,
@@ -170,12 +147,10 @@
                         0 36px,
                         28px 36px;
         }
-
         .top::after {
             margin: -20px 0 0 -20px;
             box-shadow: 28px 28px;
         }
-
         .bottom::after {
             margin: -24px 0 0 -24px;
             box-shadow: 18px 18px,
@@ -183,20 +158,17 @@
                         36px 0,
                         0 36px;
         }
-
         .right::after {
             margin: -20px 0 0 -20px;
             box-shadow: 28px 0,
             0 28px,
             28px 28px;
         }
-
         .left::after {
             margin: -23px 0 0 -23px;
             box-shadow: 18px 18px,
                         36px 36px;
         }
-
     </style>
 </head>
 <body class="bg-gradient-game text-black min-h-screen">
@@ -207,54 +179,13 @@
         const tg = window.Telegram.WebApp;
 
         // Constants and Configurations
-        const GAME_CONFIG = {
-            BASE_POINTS: 100,
-            BONUS_ACTIVATION_ROLLS: 5,
-            BONUS_ACTIVATION_CHANCE: 0.5,
-            BONUS_TYPE_CHANCE: 0.5,
-            SAFE_ZONE_ROLLS: 3,
-            TIME_FREEZE_DURATION: 5,
-            MAX_MULTIPLIER: 12,
-            INITIAL_TIME: 60,
-            DICE_ROLL_DURATION: 1250, // Duration in milliseconds
-        };
-
-        // Sound effects
-        const useSound = () => {
-            const audioContextRef = useRef(null);
-
-            useEffect(() => {
-                audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            }, []);
-
-            const playSound = useCallback((frequency, duration) => {
-                const audioContext = audioContextRef.current;
-                if (!audioContext) return;
-
-                try {
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                    gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
-                    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration - 0.01);
-                    oscillator.start();
-                    oscillator.stop(audioContext.currentTime + duration);
-                } catch (error) {
-                    console.error("Error playing sound:", error);
-                }
-            }, []);
-
-            return {
-                playDiceRoll: () => playSound(300, 0.3),
-                playCorrect: () => playSound(440, 0.2),
-                playIncorrect: () => playSound(220, 0.2),
-                playBonus: () => playSound(660, 0.3)
-            };
-        };
+        const BASE_POINTS = 100;
+        const BONUS_ACTIVATION_ROLLS = 5;
+        const BONUS_ACTIVATION_CHANCE = 0.5;
+        const BONUS_TYPE_CHANCE = 0.5;
+        const SAFE_ZONE_ROLLS = 3;
+        const TIME_FREEZE_DURATION = 5;
+        const INITIAL_TIME = 60;
 
         // Game timer hook
         const useGameTimer = (initialTime) => {
@@ -275,10 +206,9 @@
 
             const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
-                const freezeTimeout = setTimeout(() => {
+                setTimeout(() => {
                     setIsFrozen(false);
-                }, GAME_CONFIG.TIME_FREEZE_DURATION * 1000);
-                return () => clearTimeout(freezeTimeout);
+                }, TIME_FREEZE_DURATION * 1000);
             }, []);
 
             const resetTimer = useCallback(() => {
@@ -335,7 +265,7 @@
                     return {
                         ...state,
                         activeBonus: action.bonus,
-                        safeZoneRolls: action.bonus === 'Safe Zone' ? GAME_CONFIG.SAFE_ZONE_ROLLS : state.safeZoneRolls,
+                        safeZoneRolls: action.bonus === 'Safe Zone' ? SAFE_ZONE_ROLLS : state.safeZoneRolls,
                         isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
                     };
                 case 'DEACTIVATE_BONUS':
@@ -361,95 +291,7 @@
             }
         };
 
-        // Error Boundary Component
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false };
-            }
-
-            static getDerivedStateFromError(error) {
-                return { hasError: true };
-            }
-
-            componentDidCatch(error, errorInfo) {
-                console.error("Caught an error:", error, errorInfo);
-            }
-
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="text-center text-[#D52941] p-4">
-                            <h2 className="text-3xl font-bold mb-4">Oops! Something went wrong.</h2>
-                            <p className="text-xl">Please try refreshing the page or contact support if the problem persists.</p>
-                        </div>
-                    );
-                }
-
-                return this.props.children;
-            }
-        }
-
-        // Dice Component
-        const Dice = ({ number, rolling }) => {
-            const diceRef = useRef(null);
-
-            useEffect(() => {
-                if (rolling) {
-                    diceRef.current.classList.add('rolling');
-                    const timeoutId = setTimeout(() => {
-                        diceRef.current.classList.remove('rolling');
-                        setDiceFace(number);
-                    }, GAME_CONFIG.DICE_ROLL_DURATION);
-                    return () => clearTimeout(timeoutId);
-                } else {
-                    setDiceFace(number);
-                }
-            }, [rolling, number]);
-
-            const setDiceFace = (num) => {
-                let transform = '';
-                switch (num) {
-                    case 1:
-                        transform = 'rotateX(0deg) rotateY(0deg)';
-                        break;
-                    case 2:
-                        transform = 'rotateX(-90deg) rotateY(0deg)';
-                        break;
-                    case 3:
-                        transform = 'rotateY(90deg)';
-                        break;
-                    case 4:
-                        transform = 'rotateY(-90deg)';
-                        break;
-                    case 5:
-                        transform = 'rotateX(90deg)';
-                        break;
-                    case 6:
-                        transform = 'rotateX(180deg)';
-                        break;
-                    default:
-                        transform = 'rotateX(0deg) rotateY(0deg)';
-                        break;
-                }
-                diceRef.current.style.transform = transform;
-            };
-
-            return (
-                <div className="dice-container">
-                    <div className="dice" ref={diceRef}>
-                        <div className="face front"></div>
-                        <div className="face back"></div>
-                        <div className="face top"></div>
-                        <div className="face bottom"></div>
-                        <div className="face right"></div>
-                        <div className="face left"></div>
-                    </div>
-                </div>
-            );
-        };
-
-        // Tutorial Component (unchanged)
+        // Tutorial Component
         const Tutorial = ({ onComplete }) => {
             const [currentSlide, setCurrentSlide] = useState(0);
             const slides = [
@@ -488,12 +330,10 @@
             const handleTouchEnd = (e) => {
                 const touchEndX = e.changedTouches[0].screenX;
                 if (touchStartX.current - touchEndX > 50) {
-                    // Swipe left
                     if (currentSlide < slides.length - 1) {
                         setCurrentSlide(prev => prev + 1);
                     }
                 } else if (touchEndX - touchStartX.current > 50) {
-                    // Swipe right
                     if (currentSlide > 0) {
                         setCurrentSlide(prev => prev - 1);
                     }
@@ -502,7 +342,6 @@
 
             const touchStartX = useRef(0);
 
-            // Button Colors
             const buttonColor = 'bg-[#D52941]';
             const buttonHoverColor = 'hover:bg-[#990D35]';
 
@@ -536,94 +375,82 @@
             );
         };
 
-        // Game Header Component
-        const GameHeader = ({ score, timeLeft, streak, activeBonus, isTimeFreezeActive }) => (
-            <div className="w-full max-w-md">
-                <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
-                    <div className="flex flex-col items-center mb-2">
-                        <p className="text-sm opacity-70">Score</p>
-                        <p className="text-5xl font-bold">
-                            {Math.floor(score)} {activeBonus === 'Safe Zone' && '🛡️'}
-                        </p>
-                    </div>
-                    <div
-                        className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${
-                            isTimeFreezeActive ? 'frozen' : ''
-                        } shadow-custom`}
-                    >
-                        <i className="far fa-clock mr-2"></i>
-                        <p className="text-2xl font-semibold">
-                            {timeLeft}s {isTimeFreezeActive && '❄️'}
-                        </p>
+        // Dice Component
+        const Dice = ({ number, rolling }) => {
+            const diceRef = useRef(null);
+
+            useEffect(() => {
+                if (rolling) {
+                    diceRef.current.classList.add('rolling');
+                    setTimeout(() => {
+                        diceRef.current.classList.remove('rolling');
+                        setDiceFace(number);
+                    }, 1250);
+                } else {
+                    setDiceFace(number);
+                }
+            }, [rolling, number]);
+
+            const setDiceFace = (num) => {
+                const rotations = {
+                    1: 'rotateX(0deg) rotateY(0deg)',
+                    2: 'rotateX(-90deg) rotateY(0deg)',
+                    3: 'rotateY(90deg)',
+                    4: 'rotateY(-90deg)',
+                    5: 'rotateX(90deg)',
+                    6: 'rotateX(180deg)',
+                };
+                diceRef.current.style.transform = rotations[num] || 'rotateX(0deg) rotateY(0deg)';
+            };
+
+            return (
+                <div className="dice-container">
+                    <div className="dice" ref={diceRef}>
+                        <div className="face front"></div>
+                        <div className="face back"></div>
+                        <div className="face top"></div>
+                        <div className="face bottom"></div>
+                        <div className="face right"></div>
+                        <div className="face left"></div>
                     </div>
                 </div>
-                <div className="flex justify-center items-center space-x-2 mb-4">
-                    <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
-                        <i className="fas fa-bolt mr-1"></i>
-                        <span className="font-semibold">
-                            Streak: {streak} {activeBonus === 'Safe Zone' && '🛡️'}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        );
+            );
+        };
 
-        // Game Controls Component
-        const GameControls = ({ onPredict, gameState, isRolling, buttonsDisabled }) => (
-            <div className="w-full flex flex-col items-center space-y-4 mb-8">
-                <button
-                    className={`w-full max-w-md py-4 ${
-                        gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500'
-                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
-                    onClick={() => onPredict('less')}
-                    disabled={isRolling || buttonsDisabled}
-                >
-                    <i className="fas fa-arrow-down mr-2"></i> {gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
-                </button>
-                <button
-                    className={`w-full max-w-md py-4 ${
-                        gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500'
-                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
-                    onClick={() => onPredict('more')}
-                    disabled={isRolling || buttonsDisabled}
-                >
-                    <i className="fas fa-arrow-up mr-2"></i> {gameState === 'allIn' ? 'All-In: More than 7' : 'More than 7'}
-                </button>
-            </div>
-        );
+        // Error Boundary Component
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false };
+            }
 
-        // All-In Popup Component
-        const AllInPopup = ({ onHide }) => (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onHide}>
-                <div className="bg-white rounded-2xl p-6 text-center all-in-popup shadow-custom">
-                    <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
-                    <p className="mt-4 text-xl">Double or Nothing!</p>
-                </div>
-            </div>
-        );
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
 
-        // Game Over Screen Component
-        const GameOverScreen = ({ score, highScore, onRestart }) => (
-            <div className="text-center space-y-6">
-                <div className="text-5xl font-bold mb-6 text-[#D52941] fade-in">Game Over!</div>
-                <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(score)}</div>
-                <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(highScore)}</div>
-                <button
-                    onClick={onRestart}
-                    className="w-4/5 max-w-md px-8 py-4 bg-[#D52941] text-white rounded-full text-2xl font-bold shadow-lg"
-                >
-                    Play Again
-                </button>
-            </div>
-        );
+            componentDidCatch(error, errorInfo) {
+                console.error("Caught an error:", error, errorInfo);
+            }
 
-        // Main Game Component
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="text-center text-[#D52941] p-4">
+                            <h2 className="text-3xl font-bold mb-4">Oops! Something went wrong.</h2>
+                            <p className="text-xl">Please try refreshing the page or contact support if the problem persists.</p>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
         function DiceProphet() {
             const [state, dispatch] = useReducer(gameReducer, initialState);
-            const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(GAME_CONFIG.INITIAL_TIME);
-            const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
+            const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(INITIAL_TIME);
             const [showTutorial, setShowTutorial] = useState(true);
 
+            // Fetch high score on mount
             useEffect(() => {
                 tg.ready();
                 tg.expand();
@@ -648,28 +475,29 @@
                 fetchHighScore();
             }, []);
 
+            // Handle time out
             useEffect(() => {
                 if (timeLeft === 0 && state.gameState === 'playing') {
                     dispatch({ type: 'DISABLE_BUTTONS' });
                     dispatch({ type: 'SHOW_ALLIN_POPUP' });
-                    const timeoutId = setTimeout(() => {
+                    setTimeout(() => {
                         dispatch({ type: 'HIDE_ALLIN_POPUP' });
                         dispatch({ type: 'END_GAME' });
-                    }, 2000); // Show popup for 2 seconds
-                    return () => clearTimeout(timeoutId);
+                    }, 2000);
                 }
             }, [timeLeft, state.gameState]);
 
+            // Handle Time Freeze bonus
             useEffect(() => {
                 if (state.isTimeFreezeActive) {
                     freezeTimer();
-                    const timeoutId = setTimeout(() => {
+                    setTimeout(() => {
                         dispatch({ type: 'DEACTIVATE_BONUS' });
-                    }, GAME_CONFIG.TIME_FREEZE_DURATION * 1000);
-                    return () => clearTimeout(timeoutId);
+                    }, TIME_FREEZE_DURATION * 1000);
                 }
             }, [state.isTimeFreezeActive, freezeTimer]);
 
+            // Update high score if needed
             useEffect(() => {
                 if (state.gameState === 'gameOver') {
                     if (state.score > state.highScore) {
@@ -679,15 +507,17 @@
                 }
             }, [state.gameState, state.score, state.highScore]);
 
+            // Show Game Over screen after delay
             useEffect(() => {
                 if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
-                    const timeoutId = setTimeout(() => {
+                    const timeout = setTimeout(() => {
                         dispatch({ type: 'SHOW_GAME_OVER_SCREEN' });
                     }, 2000);
-                    return () => clearTimeout(timeoutId);
+                    return () => clearTimeout(timeout);
                 }
             }, [state.gameState, state.showGameOverScreen]);
 
+            // Save high score
             const saveHighScore = useCallback(async (score) => {
                 try {
                     await new Promise((resolve, reject) => {
@@ -701,15 +531,16 @@
                 }
             }, []);
 
+            // Start game
             const startGame = useCallback(() => {
                 setShowTutorial(false);
                 resetTimer();
                 dispatch({ type: 'START_GAME' });
             }, [resetTimer]);
 
+            // Roll dice
             const rollDice = useCallback(() => {
                 dispatch({ type: 'SET_ROLLING', isRolling: true });
-                playDiceRoll();
                 tg.HapticFeedback.impactOccurred('medium');
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -717,38 +548,26 @@
                         const newDice2 = Math.floor(Math.random() * 6) + 1;
                         dispatch({ type: 'ROLL_DICE', dice1: newDice1, dice2: newDice2 });
                         resolve({ dice1: newDice1, dice2: newDice2 });
-                    }, GAME_CONFIG.DICE_ROLL_DURATION);
+                    }, 1250);
                 });
-            }, [playDiceRoll]);
+            }, []);
 
-            const processPrediction = useCallback(async (pred) => {
-                if (state.buttonsDisabled || state.isRolling) return;
+            // Process prediction
+            const processPrediction = useCallback(async (pred, isAllIn = false) => {
+                if (state.buttonsDisabled || state.isRolling || state.gameState === 'gameOver') return;
 
-                const isAllIn = state.gameState === 'allIn';
                 const { dice1, dice2 } = await rollDice();
                 const sum = dice1 + dice2;
                 const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
+
                 let newScore = state.score;
                 let newMultiplier = isCorrect ? state.streak + 1 : 1;
 
                 if (isCorrect) {
-                    if (isAllIn) {
-                        newScore *= 2;
-                    } else {
-                        newScore += GAME_CONFIG.BASE_POINTS * newMultiplier;
-                    }
-                    playCorrect();
+                    newScore = isAllIn ? newScore * 2 : newScore + BASE_POINTS * newMultiplier;
                     tg.HapticFeedback.notificationOccurred('success');
                 } else {
-                    if (isAllIn) {
-                        newScore = 0;
-                    } else {
-                        if (sum === 7) {
-                            newScore = 0;
-                        }
-                        newMultiplier = 1;
-                    }
-                    playIncorrect();
+                    newScore = isAllIn ? 0 : newScore;
                     tg.HapticFeedback.notificationOccurred('error');
                 }
 
@@ -768,13 +587,12 @@
                     isCorrect: isCorrect,
                 });
 
-                if (!isAllIn && (state.rollCount + 1) % GAME_CONFIG.BONUS_ACTIVATION_ROLLS === 0 && !state.activeBonus) {
+                if (!isAllIn && (state.rollCount + 1) % BONUS_ACTIVATION_ROLLS === 0 && !state.activeBonus) {
                     const bonusChance = Math.random();
-                    if (bonusChance < GAME_CONFIG.BONUS_ACTIVATION_CHANCE) {
+                    if (bonusChance < BONUS_ACTIVATION_CHANCE) {
                         const bonusTypeChance = Math.random();
-                        const bonusType = bonusTypeChance < GAME_CONFIG.BONUS_TYPE_CHANCE ? 'Safe Zone' : 'Time Freeze';
+                        const bonusType = bonusTypeChance < BONUS_TYPE_CHANCE ? 'Safe Zone' : 'Time Freeze';
                         dispatch({ type: 'ACTIVATE_BONUS', bonus: bonusType });
-                        playBonus();
                     }
                 }
 
@@ -783,8 +601,9 @@
                         dispatch({ type: 'GAME_OVER' });
                     }, 2000);
                 }
-            }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
+            }, [state, rollDice]);
 
+            // Render game content
             const renderGameContent = () => {
                 if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
                     return (
@@ -811,36 +630,78 @@
                         return renderGame();
                     case 'gameOver':
                         return (
-                            <GameOverScreen
-                                score={state.score}
-                                highScore={state.highScore}
-                                onRestart={startGame}
-                            />
+                            <div className="text-center space-y-6">
+                                <div className="text-5xl font-bold mb-6 text-[#D52941] fade-in">Game Over!</div>
+                                <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
+                                <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
+                                <button
+                                    onClick={startGame}
+                                    className="w-4/5 max-w-md px-8 py-4 bg-[#D52941] text-white rounded-full text-2xl font-bold shadow-lg"
+                                >
+                                    Play Again
+                                </button>
+                            </div>
                         );
                     default:
                         return null;
                 }
             };
 
+            // Render game interface
             const renderGame = () => (
                 <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
-                    <GameHeader
-                        score={state.score}
-                        timeLeft={timeLeft}
-                        streak={state.streak}
-                        activeBonus={state.activeBonus}
-                        isTimeFreezeActive={state.isTimeFreezeActive}
-                    />
+                    <div className="w-full max-w-md">
+                        <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
+                            <div className="flex flex-col items-center mb-2">
+                                <p className="text-sm opacity-70">Score</p>
+                                <p className="text-5xl font-bold">
+                                    {Math.floor(state.score)} {state.activeBonus === 'Safe Zone' && '🛡️'}
+                                </p>
+                            </div>
+                            <div
+                                className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${
+                                    state.isTimeFreezeActive ? 'frozen' : ''
+                                } shadow-custom`}
+                            >
+                                <i className="far fa-clock mr-2"></i>
+                                <p className="text-2xl font-semibold">{timeLeft}s {state.isTimeFreezeActive && '❄️'}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-center items-center space-x-2 mb-4">
+                            <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
+                                <i className="fas fa-bolt mr-1"></i>
+                                <span className="font-semibold">
+                                    Streak: {state.streak} {state.activeBonus === 'Safe Zone' && '🛡️'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="flex justify-center items-center space-x-8 my-8">
                         <Dice number={state.dice1} rolling={state.isRolling} />
                         <Dice number={state.dice2} rolling={state.isRolling} />
                     </div>
-                    <GameControls
-                        onPredict={processPrediction}
-                        gameState={state.gameState}
-                        isRolling={state.isRolling}
-                        buttonsDisabled={state.buttonsDisabled}
-                    />
+
+                    <div className="w-full flex flex-col items-center space-y-4 mb-8">
+                        <button
+                            className={`w-full max-w-md py-4 ${
+                                state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500'
+                            } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
+                            onClick={() => processPrediction('less', state.gameState === 'allIn')}
+                            disabled={state.isRolling || state.buttonsDisabled}
+                        >
+                            <i className="fas fa-arrow-down mr-2"></i> {state.gameState === 'allIn' ? 'All-In: Less than 7' : 'Less than 7'}
+                        </button>
+                        <button
+                            className={`w-full max-w-md py-4 ${
+                                state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500'
+                            } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
+                            onClick={() => processPrediction('more', state.gameState === 'allIn')}
+                            disabled={state.isRolling || state.buttonsDisabled}
+                        >
+                            <i className="fas fa-arrow-up mr-2"></i> {state.gameState === 'allIn' ? 'All-In: More than 7' : 'More than 7'}
+                        </button>
+                    </div>
                 </div>
             );
 
@@ -849,7 +710,12 @@
                     {showTutorial && <Tutorial onComplete={startGame} />}
                     {renderGameContent()}
                     {state.showAllInPopup && (
-                        <AllInPopup onHide={() => dispatch({ type: 'HIDE_ALLIN_POPUP' })} />
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => dispatch({ type: 'HIDE_ALLIN_POPUP' })}>
+                            <div className="bg-white rounded-2xl p-6 text-center all-in-popup shadow-custom">
+                                <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
+                                <p className="mt-4 text-xl">Double or Nothing!</p>
+                            </div>
+                        </div>
                     )}
                 </div>
             );
