@@ -1,35 +1,29 @@
+/* Custom Styles */
 body {
     font-family: 'Poppins', sans-serif;
     background-color: #FFF8E8;
 }
-
 .bg-gradient-game {
     background: linear-gradient(to bottom, #FFF8E8, #FFFFFF);
 }
-
 .float-animation {
     animation: float 3s ease-in-out infinite;
 }
-
 @keyframes float {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
     100% { transform: translateY(0px); }
 }
-
 .fade-in {
     animation: fadeIn 0.5s ease-out;
 }
-
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-
 .frozen {
     animation: frozenGlow 1s ease-in-out infinite alternate;
 }
-
 @keyframes frozenGlow {
     from {
         box-shadow: 0 0 10px #80d0ff;
@@ -38,15 +32,12 @@ body {
         box-shadow: 0 0 20px #80d0ff;
     }
 }
-
 .shadow-custom {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
 .all-in-popup {
     animation: fadeInOut 2s ease-in-out;
 }
-
 @keyframes fadeInOut {
     0%, 100% { opacity: 0; }
     50% { opacity: 1; }

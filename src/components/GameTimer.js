@@ -1,9 +1,13 @@
-// src/hooks/useGameTimer.js
+// components/GameTimer.js
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { TIME_FREEZE_DURATION } from '../constants.js';
+const { useState, useEffect, useCallback, useRef } = React;
 
-export function useGameTimer(initialTime) {
+/**
+ * Custom hook to manage the game timer
+ * @param {number} initialTime - Initial time in seconds
+ * @returns {Object} - Time left and control functions
+ */
+function useGameTimer(initialTime) {
     const [timeLeft, setTimeLeft] = useState(initialTime);
     const [isFrozen, setIsFrozen] = useState(false);
     const timerRef = useRef(null);

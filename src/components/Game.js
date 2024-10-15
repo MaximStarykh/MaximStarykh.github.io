@@ -1,167 +1,25 @@
-// src/components/DiceProphet.js
+// components/Game.js
 
-import React, { useState, useEffect, useCallback, useReducer } from 'react';
-import { useSound } from '../hooks/useSound.js';
-import { useGameTimer } from '../hooks/useGameTimer.js';
-import Tutorial from './Tutorial.js';
-import Dice from './Dice.js';
-import {
-    BASE_POINTS,
-    BONUS_ACTIVATION_ROLLS,
-    BONUS_ACTIVATION_CHANCE,
-    BONUS_TYPE_CHANCE,
-    SAFE_ZONE_ROLLS,
-    TIME_FREEZE_DURATION,
-    MAX_MULTIPLIER,
-    INITIAL_TIME
-} from '../constants.js';
+const { useState, useEffect, useReducer, useCallback } = React;
 
-const tg = window.Telegram.WebApp;
+// Import necessary components and utilities
+// For this example, inline definitions will be used
 
-// Initial game state
-const initialState = {
-    dice1: 1,
-    dice2: 1,
-    score: 0,
-    highScore: 0,
-    multiplier: 1,
-    activeBonus: null,
-    gameState: 'ready',
-    safeZoneRolls: 0,
-    rollCount: 0,
-    isRolling: false,
-    streak: 0,
-    isTimeFreezeActive: false,
-    buttonsDisabled: false,
-    showAllInPopup: false,
-    showGameOverScreen: false,
-};
-
-// Game reducer function
-function gameReducer(state, action) {
-    switch (action.type) {
-        // Start the game
-        case 'START_GAME':
-            return { ...initialState, gameState: 'playing', highScore: state.highScore };
-
-        // Transition to all-in round
-        case 'END_GAME':
-            return { ...state, gameState: 'allIn', buttonsDisabled: false };
-
-        // Game over state
-        case 'GAME_OVER':
-            return {
-                ...state,
-                gameState: 'gameOver',
-                activeBonus: null,
-                safeZoneRolls: 0,
-                isTimeFreezeActive: false,
-            };
-
-        // Roll dice action
-        case 'ROLL_DICE':
-            return {
-                ...state,
-                dice1: action.dice1,
-                dice2: action.dice2,
-                rollCount: state.rollCount + 1,
-                isRolling: false,
-            };
-
-        // Update score and multiplier
-        case 'UPDATE_SCORE':
-            return {
-                ...state,
-                score: action.newScore,
-                multiplier: action.multiplier,
-                streak: action.isCorrect ? state.streak + 1 : 0,
-            };
-
-        // Activate bonus
-        case 'ACTIVATE_BONUS':
-            return {
-                ...state,
-                activeBonus: action.bonus,
-                safeZoneRolls: action.bonus === 'Safe Zone' ? SAFE_ZONE_ROLLS : state.safeZoneRolls,
-                isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
-            };
-
-        // Deactivate bonus
-        case 'DEACTIVATE_BONUS':
-            return { ...state, activeBonus: null, safeZoneRolls: 0, isTimeFreezeActive: false };
-
-        // Update high score
-        case 'UPDATE_HIGH_SCORE':
-            return { ...state, highScore: action.highScore };
-
-        // Set rolling state
-        case 'SET_ROLLING':
-            return { ...state, isRolling: action.isRolling };
-
-        // Decrease safe zone rolls
-        case 'DECREASE_SAFE_ZONE':
-            return { ...state, safeZoneRolls: state.safeZoneRolls - 1 };
-
-        // Disable buttons
-        case 'DISABLE_BUTTONS':
-            return { ...state, buttonsDisabled: true };
-
-        // Enable buttons
-        case 'ENABLE_BUTTONS':
-            return { ...state, buttonsDisabled: false };
-
-        // Show all-in popup
-        case 'SHOW_ALLIN_POPUP':
-            return { ...state, showAllInPopup: true };
-
-        // Hide all-in popup
-        case 'HIDE_ALLIN_POPUP':
-            return { ...state, showAllInPopup: false };
-
-        // Show game over screen
-        case 'SHOW_GAME_OVER_SCREEN':
-            return { ...state, showGameOverScreen: true };
-
-        default:
-            return state;
-    }
-}
-
-// Main game component
-function DiceProphet() {
+/**
+ * Main Game component that handles game logic and rendering
+ */
+function Game() {
     const [state, dispatch] = useReducer(gameReducer, initialState);
     const { timeLeft, freezeTimer, isFrozen, resetTimer } = useGameTimer(INITIAL_TIME);
     const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
-    const [showTutorial, setShowTutorial] = useState(true);
 
     useEffect(() => {
-        // Initialize Telegram WebApp
-        tg.ready();
-        tg.expand();
-
-        // Fetch high score from cloud storage
-        const fetchHighScore = async () => {
-            try {
-                const value = await new Promise((resolve, reject) => {
-                    tg.CloudStorage.getItem("highScore", (error, value) => {
-                        if (error) reject(error);
-                        else resolve(value);
-                    });
-                });
-                if (value) {
-                    dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: parseInt(value) });
-                }
-            } catch (error) {
-                console.error("Failed to retrieve high score:", error);
-                dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: 0 });
-            }
-        };
-
+        // Fetch high score on component mount
         fetchHighScore();
     }, []);
 
     useEffect(() => {
-        // Handle timer reaching zero
+        // Handle time out and transition to All-In round
         if (timeLeft === 0 && state.gameState === 'playing') {
             dispatch({ type: 'DISABLE_BUTTONS' });
             dispatch({ type: 'SHOW_ALLIN_POPUP' });
@@ -173,7 +31,7 @@ function DiceProphet() {
     }, [timeLeft, state.gameState]);
 
     useEffect(() => {
-        // Handle time freeze bonus
+        // Handle Time Freeze bonus
         if (state.isTimeFreezeActive) {
             freezeTimer();
             setTimeout(() => {
@@ -193,7 +51,7 @@ function DiceProphet() {
     }, [state.gameState, state.score, state.highScore]);
 
     useEffect(() => {
-        // Show game over screen after a delay
+        // Show Game Over screen after a delay
         if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
             const timeout = setTimeout(() => {
                 dispatch({ type: 'SHOW_GAME_OVER_SCREEN' });
@@ -203,8 +61,31 @@ function DiceProphet() {
         }
     }, [state.gameState, state.showGameOverScreen]);
 
-    // Function to save high score
-    const saveHighScore = useCallback(async (score) => {
+    /**
+     * Fetch high score from Telegram Cloud Storage
+     */
+    const fetchHighScore = async () => {
+        try {
+            const value = await new Promise((resolve, reject) => {
+                tg.CloudStorage.getItem("highScore", (error, value) => {
+                    if (error) reject(error);
+                    else resolve(value);
+                });
+            });
+            if (value) {
+                dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: parseInt(value) });
+            }
+        } catch (error) {
+            console.error("Failed to retrieve high score:", error);
+            dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: 0 });
+        }
+    };
+
+    /**
+     * Save high score to Telegram Cloud Storage
+     * @param {number} score
+     */
+    const saveHighScore = async (score) => {
         try {
             await new Promise((resolve, reject) => {
                 tg.CloudStorage.setItem("highScore", score.toString(), (error) => {
@@ -215,17 +96,21 @@ function DiceProphet() {
         } catch (error) {
             console.error("Failed to save high score:", error);
         }
-    }, []);
+    };
 
-    // Function to start the game
-    const startGame = useCallback(() => {
-        setShowTutorial(false);
+    /**
+     * Start a new game
+     */
+    const startGame = () => {
         resetTimer();
         dispatch({ type: 'START_GAME' });
-    }, [resetTimer]);
+    };
 
-    // Function to roll the dice
-    const rollDice = useCallback(() => {
+    /**
+     * Roll the dice with animation and sound effects
+     * @returns {Promise<{dice1: number, dice2: number}>}
+     */
+    const rollDice = () => {
         dispatch({ type: 'SET_ROLLING', isRolling: true });
         playDiceRoll();
         tg.HapticFeedback.impactOccurred('medium');
@@ -237,16 +122,18 @@ function DiceProphet() {
                 resolve({ dice1: newDice1, dice2: newDice2 });
             }, 1250); // Match the dice animation duration
         });
-    }, [playDiceRoll]);
+    };
 
-    // Function to process user's prediction
-    const processPrediction = useCallback(async (pred, isAllIn = false) => {
-        // Disable input if buttons are disabled or dice are rolling
+    /**
+     * Process the user's prediction and update game state
+     * @param {string} prediction - 'less' or 'more'
+     * @param {boolean} isAllIn - Whether it's an All-In round
+     */
+    const processPrediction = async (prediction, isAllIn = false) => {
         if (state.buttonsDisabled || state.isRolling) return;
-
         const { dice1, dice2 } = await rollDice();
         const sum = dice1 + dice2;
-        const isCorrect = (pred === 'less' && sum < 7) || (pred === 'more' && sum > 7);
+        const isCorrect = (prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7);
         let newScore = state.score;
         let newMultiplier = state.streak + 1;
 
@@ -309,9 +196,11 @@ function DiceProphet() {
                 dispatch({ type: 'GAME_OVER' });
             }, 2000);
         }
-    }, [state, rollDice, playCorrect, playIncorrect, playBonus]);
+    };
 
-    // Function to render the game content based on the game state
+    /**
+     * Render the game content based on the game state
+     */
     const renderGameContent = () => {
         if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
             // Show the last game state during the 2-second pause
@@ -324,17 +213,6 @@ function DiceProphet() {
         }
 
         switch (state.gameState) {
-            case 'ready':
-                return (
-                    <div className="text-center">
-                        <button
-                            onClick={startGame}
-                            className="w-4/5 max-w-md px-8 py-4 bg-[#FCD581] text-[#990D35] rounded-full transition-colors duration-200 text-2xl font-bold shadow-lg"
-                        >
-                            Start Game
-                        </button>
-                    </div>
-                );
             case 'playing':
             case 'allIn':
                 return renderGame();
@@ -357,10 +235,11 @@ function DiceProphet() {
         }
     };
 
-    // Function to render the main game UI
+    /**
+     * Render the game interface
+     */
     const renderGame = () => (
         <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
-            {/* Score and Timer */}
             <div className="w-full max-w-md">
                 <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
                     <div className="flex flex-col items-center mb-2">
@@ -388,20 +267,16 @@ function DiceProphet() {
                 </div>
             </div>
 
-            {/* Dice */}
             <div className="flex justify-center items-center space-x-8 my-8">
                 <Dice number={state.dice1} rolling={state.isRolling} />
                 <Dice number={state.dice2} rolling={state.isRolling} />
             </div>
 
-            {/* Prediction Buttons */}
             <div className="w-full flex flex-col items-center space-y-4 mb-8">
                 <button
                     className={`w-full max-w-md py-4 ${
                         state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500'
-                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom ${
-                        (state.isRolling || state.buttonsDisabled) ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                     onClick={() => processPrediction('less', state.gameState === 'allIn')}
                     disabled={state.isRolling || state.buttonsDisabled}
                 >
@@ -410,24 +285,16 @@ function DiceProphet() {
                 <button
                     className={`w-full max-w-md py-4 ${
                         state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500'
-                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom ${
-                        (state.isRolling || state.buttonsDisabled) ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
                     onClick={() => processPrediction('more', state.gameState === 'allIn')}
                     disabled={state.isRolling || state.buttonsDisabled}
                 >
                     <i className="fas fa-arrow-up mr-2"></i> {state.gameState === 'allIn' ? 'All-In: More than 7' : 'More than 7'}
                 </button>
             </div>
-        </div>
-    );
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4">
-            {showTutorial && <Tutorial onComplete={startGame} />}
-            {renderGameContent()}
             {state.showAllInPopup && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => dispatch({ type: 'HIDE_ALLIN_POPUP' })}>
                     <div className="bg-white rounded-2xl p-6 text-center all-in-popup shadow-custom">
                         <h2 className="text-3xl font-bold text-[#D52941]">All-In Round!</h2>
                         <p className="mt-4 text-xl">Double or Nothing!</p>
@@ -436,6 +303,10 @@ function DiceProphet() {
             )}
         </div>
     );
-}
 
-export default DiceProphet;
+    return (
+        <div>
+            {renderGameContent()}
+        </div>
+    );
+}

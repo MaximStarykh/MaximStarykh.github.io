@@ -1,7 +1,13 @@
-// src/components/Dice.js
+// components/Dice.js
 
-import React, { useEffect, useRef } from 'react';
+const { useRef, useEffect } = React;
 
+/**
+ * Dice component to display a 3D dice
+ * @param {Object} props
+ * @param {number} props.number - The number to display on the dice
+ * @param {boolean} props.rolling - Whether the dice is currently rolling
+ */
 function Dice({ number, rolling }) {
     const diceRef = useRef(null);
 
@@ -58,5 +64,3 @@ function Dice({ number, rolling }) {
         </div>
     );
 }
-
-export default Dice;

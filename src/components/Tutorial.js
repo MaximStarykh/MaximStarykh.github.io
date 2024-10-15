@@ -1,12 +1,15 @@
-// src/components/Tutorial.js
+// components/Tutorial.js
 
-import React, { useState, useRef } from 'react';
+const { useState, useRef } = React;
 
-// Tutorial Component with Centered Text and Button Adjustments
+/**
+ * Tutorial component to display game instructions
+ * @param {Object} props
+ * @param {function} props.onComplete - Callback when tutorial is completed
+ */
 function Tutorial({ onComplete }) {
     const [currentSlide, setCurrentSlide] = useState(0);
     const slides = [
-        // Slide 1
         <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Welcome to Dice Prophet!</h2>
             <p className="mb-6 text-xl">Predict the future, master the dice, and become a legend!</p>
@@ -16,7 +19,6 @@ function Tutorial({ onComplete }) {
                 <p><i className="fas fa-exclamation-triangle text-[#D52941] mr-2"></i> But beware of the dreaded 7!</p>
             </div>
         </div>,
-        // Slide 2
         <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <h2 className="text-4xl font-bold mb-6 text-[#D52941]">Power-Ups and Bonuses</h2>
             <div className="space-y-4">
@@ -25,7 +27,6 @@ function Tutorial({ onComplete }) {
                 <p><i className="fas fa-gift text-[#D52941] mr-2"></i> Look out for surprise bonuses to boost your score!</p>
             </div>
         </div>,
-        // Slide 3
         <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <h2 className="text-4xl font-bold mb-6 text-[#D52941]">All or Nothing!</h2>
             <p className="mb-6 text-xl">When time runs out, you have one last chance to double your score!</p>
@@ -91,5 +92,3 @@ function Tutorial({ onComplete }) {
         </div>
     );
 }
-
-export default Tutorial;
