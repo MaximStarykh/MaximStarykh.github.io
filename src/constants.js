@@ -1,3 +1,5 @@
+// src/constants.js
+
 export const BASE_POINTS = 100;
 export const BONUS_ACTIVATION_ROLLS = 5;
 export const BONUS_ACTIVATION_CHANCE = 0.5;

@@ -1,0 +1,182 @@
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #FFF8E8;
+}
+
+.bg-gradient-game {
+    background: linear-gradient(to bottom, #FFF8E8, #FFFFFF);
+}
+
+.float-animation {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.frozen {
+    animation: frozenGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes frozenGlow {
+    from {
+        box-shadow: 0 0 10px #80d0ff;
+    }
+    to {
+        box-shadow: 0 0 20px #80d0ff;
+    }
+}
+
+.shadow-custom {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.all-in-popup {
+    animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Dice Styles */
+.dice-container {
+    display: grid;
+    place-items: center;
+    perspective: 1000px;
+}
+
+.dice {
+    position: relative;
+    width: 25vw;
+    height: 25vw;
+    max-width: 120px;
+    max-height: 120px;
+    transform-style: preserve-3d;
+    transition: transform 1s ease;
+}
+
+.dice.rolling {
+    animation: rolling 1.25s ease-in-out;
+}
+
+@keyframes rolling {
+    from {
+        transform: rotateX(0deg) rotateY(0deg);
+    }
+    to {
+        transform: rotateX(720deg) rotateY(720deg);
+    }
+}
+
+.face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    border: 2px solid #f6f3f0;
+    transform-style: preserve-3d;
+    background: linear-gradient(
+        145deg, #dddbd8, #fff
+    );
+}
+
+.face::before {
+    position: absolute;
+    content: '';
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    background: #f6f3f0;
+    transform: translateZ(-1px);
+}
+
+.face::after {
+    position: absolute;
+    content: '';
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #131210;
+}
+
+.front {
+    transform: translateZ(40px);
+}
+
+.back {
+    transform: rotateX(180deg) translateZ(40px);
+}
+
+.top {
+    transform: rotateX(90deg) translateZ(40px);
+}
+
+.bottom {
+    transform: rotateX(-90deg) translateZ(40px);
+}
+
+.right {
+    transform: rotateY(90deg) translateZ(40px);
+}
+
+.left {
+    transform: rotateY(-90deg) translateZ(40px);
+}
+
+.front::after {
+    width: 20px;
+    height: 20px;
+    background: #f63330;
+    margin: -10px 0 0 -10px;
+}
+
+.back::after {
+    margin: -23px 0 0 -20px;
+    box-shadow: 28px 0,
+                0 18px,
+                28px 18px,
+                0 36px,
+                28px 36px;
+}
+
+.top::after {
+    margin: -20px 0 0 -20px;
+    box-shadow: 28px 28px;
+}
+
+.bottom::after {
+    margin: -24px 0 0 -24px;
+    box-shadow: 18px 18px,
+                36px 36px,
+                36px 0,
+                0 36px;
+}
+
+.right::after {
+    margin: -20px 0 0 -20px;
+    box-shadow: 28px 0,
+    0 28px,
+    28px 28px;
+}
+
+.left::after {
+    margin: -23px 0 0 -23px;
+    box-shadow: 18px 18px,
+                36px 36px;
+}
