@@ -3,7 +3,7 @@
 /**
  * Initial state for the game reducer
  */
-const initialState = {
+export const initialState = {
     dice1: 1,
     dice2: 1,
     score: 0,
@@ -27,7 +27,7 @@ const initialState = {
  * @param {Object} action - Action to perform
  * @returns {Object} - New state
  */
-function gameReducer(state, action) {
+export function gameReducer(state, action) {
     switch (action.type) {
         case 'START_GAME':
             return { ...initialState, gameState: 'playing', highScore: state.highScore };
@@ -54,8 +54,8 @@ function gameReducer(state, action) {
             return {
                 ...state,
                 activeBonus: action.bonus,
-                safeZoneRolls: action.bonus === 'Safe Zone' ? window.SAFE_ZONE_ROLLS : state.safeZoneRolls,
-                isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
+                safeZoneRolls: action.bonus === 'Safe Zone' ? SAFE_ZONE_ROLLS : state.safeZoneRolls,
+                isTimeFreezeActive: action.bonus === 'Time Freeze',
             };
         case 'DEACTIVATE_BONUS':
             return { ...state, activeBonus: null, safeZoneRolls: 0, isTimeFreezeActive: false };
@@ -79,7 +79,3 @@ function gameReducer(state, action) {
             return state;
     }
 }
-
-// Assign to global scope
-window.gameReducer = gameReducer;
-window.initialState = initialState;

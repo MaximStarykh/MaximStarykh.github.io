@@ -1,17 +1,11 @@
 // components/Game.js
 
-const { useState, useEffect, useReducer, useCallback } = React;
-
-// Assign components, hooks, and utilities from window
-const Dice = window.Dice;
-const useSound = window.useSound;
-const useGameTimer = window.useGameTimer;
-const gameReducer = window.gameReducer;
-const initialState = window.initialState;
-
-const tg = window.Telegram.WebApp;
-
-const {
+import React, { useState, useEffect, useReducer, useCallback } from 'react';
+import { useSound } from './Sound';
+import { useGameTimer } from './GameTimer';
+import { gameReducer, initialState } from '../utils/gameReducer';
+import { Dice } from './Dice';
+import {
     BASE_POINTS,
     BONUS_ACTIVATION_ROLLS,
     BONUS_ACTIVATION_CHANCE,
@@ -19,10 +13,13 @@ const {
     TIME_FREEZE_DURATION,
     SAFE_ZONE_ROLLS,
     INITIAL_TIME,
-} = window;
+} from './constants';
+
+const tg = window.Telegram.WebApp;
 
 /**
  * Main Game component that handles game logic and rendering
+ * @returns {JSX.Element}
  */
 function Game() {
     const [state, dispatch] = useReducer(gameReducer, initialState);
@@ -30,24 +27,33 @@ function Game() {
     const { playDiceRoll, playCorrect, playIncorrect, playBonus } = useSound();
 
     useEffect(() => {
-        // Fetch high score on component mount
         fetchHighScore();
     }, []);
 
     useEffect(() => {
-        // Handle time out and transition to All-In round
+        handleTimeOut();
+    }, [timeLeft, state.gameState]);
+
+    useEffect(() => {
+        handleTimeFreezeBonus();
+    }, [state.isTimeFreezeActive, freezeTimer]);
+
+    useEffect(() => {
+        handleGameOver();
+    }, [state.gameState, state.score, state.highScore]);
+
+    const handleTimeOut = useCallback(() => {
         if (timeLeft === 0 && state.gameState === 'playing') {
             dispatch({ type: 'DISABLE_BUTTONS' });
             dispatch({ type: 'SHOW_ALLIN_POPUP' });
             setTimeout(() => {
                 dispatch({ type: 'HIDE_ALLIN_POPUP' });
                 dispatch({ type: 'END_GAME' });
-            }, 2000); // Show popup for 2 seconds
+            }, 2000);
         }
     }, [timeLeft, state.gameState]);
 
-    useEffect(() => {
-        // Handle Time Freeze bonus
+    const handleTimeFreezeBonus = useCallback(() => {
         if (state.isTimeFreezeActive) {
             freezeTimer();
             setTimeout(() => {
@@ -56,30 +62,19 @@ function Game() {
         }
     }, [state.isTimeFreezeActive, freezeTimer]);
 
-    useEffect(() => {
-        // Update high score on game over
-        if (state.gameState === 'gameOver') {
+    const handleGameOver = useCallback(() => {
+        if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
             if (state.score > state.highScore) {
                 dispatch({ type: 'UPDATE_HIGH_SCORE', highScore: state.score });
                 saveHighScore(state.score);
             }
-        }
-    }, [state.gameState, state.score, state.highScore]);
-
-    useEffect(() => {
-        // Show Game Over screen after a delay
-        if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
             const timeout = setTimeout(() => {
                 dispatch({ type: 'SHOW_GAME_OVER_SCREEN' });
             }, 2000);
-
             return () => clearTimeout(timeout);
         }
-    }, [state.gameState, state.showGameOverScreen]);
+    }, [state.gameState, state.showGameOverScreen, state.score, state.highScore]);
 
-    /**
-     * Fetch high score from Telegram Cloud Storage
-     */
     const fetchHighScore = async () => {
         try {
             const value = await new Promise((resolve, reject) => {
@@ -97,10 +92,6 @@ function Game() {
         }
     };
 
-    /**
-     * Save high score to Telegram Cloud Storage
-     * @param {number} score
-     */
     const saveHighScore = async (score) => {
         try {
             await new Promise((resolve, reject) => {
@@ -114,18 +105,11 @@ function Game() {
         }
     };
 
-    /**
-     * Start a new game
-     */
     const startGame = () => {
         resetTimer();
         dispatch({ type: 'START_GAME' });
     };
 
-    /**
-     * Roll the dice with animation and sound effects
-     * @returns {Promise<{dice1: number, dice2: number}>}
-     */
     const rollDice = () => {
         dispatch({ type: 'SET_ROLLING', isRolling: true });
         playDiceRoll();
@@ -136,20 +120,17 @@ function Game() {
                 const newDice2 = Math.floor(Math.random() * 6) + 1;
                 dispatch({ type: 'ROLL_DICE', dice1: newDice1, dice2: newDice2 });
                 resolve({ dice1: newDice1, dice2: newDice2 });
-            }, 1250); // Match the dice animation duration
+            }, 1250);
         });
     };
 
-    /**
-     * Process the user's prediction and update game state
-     * @param {string} prediction - 'less' or 'more'
-     * @param {boolean} isAllIn - Whether it's an All-In round
-     */
     const processPrediction = async (prediction, isAllIn = false) => {
         if (state.buttonsDisabled || state.isRolling) return;
+
         const { dice1, dice2 } = await rollDice();
         const sum = dice1 + dice2;
         const isCorrect = (prediction === 'less' && sum < 7) || (prediction === 'more' && sum > 7);
+
         let newScore = state.score;
         let newMultiplier = state.streak + 1;
 
@@ -176,6 +157,12 @@ function Game() {
             tg.HapticFeedback.notificationOccurred('error');
         }
 
+        handleBonus(isCorrect, isAllIn);
+        updateGameState(newScore, newMultiplier, isCorrect);
+        handleAllInRound(isAllIn);
+    };
+
+    const handleBonus = (isCorrect, isAllIn) => {
         if (state.activeBonus === 'Safe Zone' && !isAllIn) {
             dispatch({ type: 'DECREASE_SAFE_ZONE' });
             if (state.safeZoneRolls <= 1) {
@@ -185,44 +172,37 @@ function Game() {
             dispatch({ type: 'DEACTIVATE_BONUS' });
         }
 
+        if (!isAllIn && (state.rollCount + 1) % BONUS_ACTIVATION_ROLLS === 0 && !state.activeBonus) {
+            const bonusChance = Math.random();
+            if (bonusChance < BONUS_ACTIVATION_CHANCE) {
+                const bonusType = Math.random() < BONUS_TYPE_CHANCE ? 'Safe Zone' : 'Time Freeze';
+                dispatch({ type: 'ACTIVATE_BONUS', bonus: bonusType });
+                playBonus();
+            }
+        }
+    };
+
+    const updateGameState = (newScore, newMultiplier, isCorrect) => {
         dispatch({
             type: 'UPDATE_SCORE',
             newScore: newScore,
             multiplier: newMultiplier,
             isCorrect: isCorrect,
         });
+    };
 
-        if (!isAllIn && (state.rollCount + 1) % BONUS_ACTIVATION_ROLLS === 0 && !state.activeBonus) {
-            const bonusChance = Math.random();
-            if (bonusChance < BONUS_ACTIVATION_CHANCE) {
-                const bonusTypeChance = Math.random();
-                if (bonusTypeChance < BONUS_TYPE_CHANCE) {
-                    dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Safe Zone' });
-                    playBonus();
-                } else {
-                    dispatch({ type: 'ACTIVATE_BONUS', bonus: 'Time Freeze' });
-                    playBonus();
-                }
-            }
-        }
-
+    const handleAllInRound = (isAllIn) => {
         if (isAllIn) {
-            // Wait for 2 seconds to show the dice result before game over
             setTimeout(() => {
                 dispatch({ type: 'GAME_OVER' });
             }, 2000);
         }
     };
 
-    /**
-     * Render the game content based on the game state
-     */
     const renderGameContent = () => {
         if (state.gameState === 'gameOver' && !state.showGameOverScreen) {
-            // Show the last game state during the 2-second pause
             return (
                 <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
-                    {/* Display the last game state without interactions */}
                     {renderGame()}
                 </div>
             );
@@ -233,27 +213,12 @@ function Game() {
             case 'allIn':
                 return renderGame();
             case 'gameOver':
-                return (
-                    <div className="text-center space-y-6">
-                        <div className="text-5xl font-bold mb-6 text-[#D52941] fade-in">Game Over!</div>
-                        <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
-                        <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
-                        <button
-                            onClick={startGame}
-                            className="w-4/5 max-w-md px-8 py-4 bg-[#D52941] text-white rounded-full text-2xl font-bold shadow-lg"
-                        >
-                            Play Again
-                        </button>
-                    </div>
-                );
+                return renderGameOver();
             default:
                 return null;
         }
     };
 
-    /**
-     * Render the game interface
-     */
     const renderGame = () => (
         <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
             <div className="w-full max-w-md">
@@ -320,6 +285,20 @@ function Game() {
         </div>
     );
 
+    const renderGameOver = () => (
+        <div className="text-center space-y-6">
+            <div className="text-5xl font-bold mb-6 text-[#D52941] fade-in">Game Over!</div>
+            <div className="text-4xl mb-4 fade-in">Final Score: {Math.floor(state.score)}</div>
+            <div className="text-3xl mb-6 fade-in">High Score: {Math.floor(state.highScore)}</div>
+            <button
+                onClick={startGame}
+                className="w-4/5 max-w-md px-8 py-4 bg-[#D52941] text-white rounded-full text-2xl font-bold shadow-lg"
+            >
+                Play Again
+            </button>
+        </div>
+    );
+
     return (
         <div>
             {renderGameContent()}
@@ -327,5 +306,4 @@ function Game() {
     );
 }
 
-// Assign to global scope
-window.Game = Game;
+export default Game;

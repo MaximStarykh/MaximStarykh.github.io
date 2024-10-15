@@ -1,13 +1,12 @@
 // app.js
 
-const { useState, useEffect } = React;
-const ReactDOM = window.ReactDOM;
-const tg = window.Telegram.WebApp;
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { Tutorial } from './components/Tutorial';
+import { Game } from './components/Game';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Assign components from window
-const Tutorial = window.Tutorial;
-const Game = window.Game;
-const ErrorBoundary = window.ErrorBoundary;
+const tg = window.Telegram.WebApp;
 
 function App() {
     const [showTutorial, setShowTutorial] = useState(true);

@@ -1,6 +1,7 @@
 // components/ErrorBoundary.js
 
-const { Component } = React;
+import React, { Component } from 'react';
+import { COLORS } from './constants';
 
 /**
  * ErrorBoundary component to catch rendering errors
@@ -8,26 +9,40 @@ const { Component } = React;
 class ErrorBoundary extends Component {
     constructor(props) {
         super(props);
-        this.state = { hasError: false };
+        this.state = { hasError: false, error: null, errorInfo: null };
     }
 
     static getDerivedStateFromError(error) {
-        // Update state so the next render shows the fallback UI
         return { hasError: true };
     }
 
     componentDidCatch(error, errorInfo) {
-        // Log the error to an error reporting service
+        this.setState({ error, errorInfo });
+        this.logError(error, errorInfo);
+    }
+
+    logError(error, errorInfo) {
+        // Log the error to a service like Sentry
         console.error("Caught an error:", error, errorInfo);
+        // TODO: Implement proper error logging service
     }
 
     render() {
         if (this.state.hasError) {
-            // Render any custom fallback UI
             return (
-                <div className="text-center text-[#D52941] p-4">
+                <div className="text-center p-4" style={{ color: COLORS.PRIMARY }}>
                     <h2 className="text-3xl font-bold mb-4">Oops! Something went wrong.</h2>
-                    <p className="text-xl">Please try refreshing the page or contact support if the problem persists.</p>
+                    <p className="text-xl mb-4">Please try refreshing the page or contact support if the problem persists.</p>
+                    {process.env.NODE_ENV === 'development' && (
+                        <details className="mt-4 text-left">
+                            <summary>Error Details</summary>
+                            <pre className="mt-2 p-2 bg-gray-100 rounded">
+                                {this.state.error && this.state.error.toString()}
+                                <br />
+                                {this.state.errorInfo && this.state.errorInfo.componentStack}
+                            </pre>
+                        </details>
+                    )}
                 </div>
             );
         }
@@ -36,5 +51,4 @@ class ErrorBoundary extends Component {
     }
 }
 
-// Assign to global scope
-window.ErrorBoundary = ErrorBoundary;
+export default ErrorBoundary;

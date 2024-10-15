@@ -1,21 +1,32 @@
 // components/constants.js
 
-// Constants and Configurations
-const BASE_POINTS = 100;
-const BONUS_ACTIVATION_ROLLS = 5;
-const BONUS_ACTIVATION_CHANCE = 0.5;
-const BONUS_TYPE_CHANCE = 0.5;
-const SAFE_ZONE_ROLLS = 3;
-const TIME_FREEZE_DURATION = 5;
-const MAX_MULTIPLIER = 12;
-const INITIAL_TIME = 60;
+/**
+ * Game constants and configurations
+ */
+export const BASE_POINTS = 100;
+export const BONUS_ACTIVATION_ROLLS = 5;
+export const BONUS_ACTIVATION_CHANCE = 0.5;
+export const BONUS_TYPE_CHANCE = 0.5;
+export const SAFE_ZONE_ROLLS = 3;
+export const TIME_FREEZE_DURATION = 5;
+export const MAX_MULTIPLIER = 12;
+export const INITIAL_TIME = 60;
 
-// Assign constants to global scope
-window.BASE_POINTS = BASE_POINTS;
-window.BONUS_ACTIVATION_ROLLS = BONUS_ACTIVATION_ROLLS;
-window.BONUS_ACTIVATION_CHANCE = BONUS_ACTIVATION_CHANCE;
-window.BONUS_TYPE_CHANCE = BONUS_TYPE_CHANCE;
-window.SAFE_ZONE_ROLLS = SAFE_ZONE_ROLLS;
-window.TIME_FREEZE_DURATION = TIME_FREEZE_DURATION;
-window.MAX_MULTIPLIER = MAX_MULTIPLIER;
-window.INITIAL_TIME = INITIAL_TIME;
+/**
+ * Color constants
+ */
+export const COLORS = {
+    PRIMARY: '#D52941',
+    SECONDARY: '#990D35',
+    ACCENT: '#FCD581',
+    BACKGROUND: '#FFF8E8',
+    TEXT: '#131210',
+};
+
+/**
+ * Animation durations
+ */
+export const ANIMATION = {
+    DICE_ROLL: 1250, // ms
+    POPUP_DURATION: 2000, // ms
+};

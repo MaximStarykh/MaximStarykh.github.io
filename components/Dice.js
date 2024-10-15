@@ -1,12 +1,13 @@
 // components/Dice.js
 
-const { useRef, useEffect } = React;
+import React, { useRef, useEffect } from 'react';
 
 /**
  * Dice component to display a 3D dice
  * @param {Object} props
  * @param {number} props.number - The number to display on the dice
  * @param {boolean} props.rolling - Whether the dice is currently rolling
+ * @returns {JSX.Element}
  */
 function Dice({ number, rolling }) {
     const diceRef = useRef(null);
@@ -14,41 +15,26 @@ function Dice({ number, rolling }) {
     useEffect(() => {
         if (rolling) {
             diceRef.current.classList.add('rolling');
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 diceRef.current.classList.remove('rolling');
                 setDiceFace(number);
             }, 1250);
+            return () => clearTimeout(timer);
         } else {
             setDiceFace(number);
         }
     }, [rolling, number]);
 
     const setDiceFace = (num) => {
-        let transform = '';
-        switch (num) {
-            case 1:
-                transform = 'rotateX(0deg) rotateY(0deg)';
-                break;
-            case 2:
-                transform = 'rotateX(-90deg) rotateY(0deg)';
-                break;
-            case 3:
-                transform = 'rotateY(90deg)';
-                break;
-            case 4:
-                transform = 'rotateY(-90deg)';
-                break;
-            case 5:
-                transform = 'rotateX(90deg)';
-                break;
-            case 6:
-                transform = 'rotateX(180deg)';
-                break;
-            default:
-                transform = 'rotateX(0deg) rotateY(0deg)';
-                break;
-        }
-        diceRef.current.style.transform = transform;
+        const transforms = {
+            1: 'rotateX(0deg) rotateY(0deg)',
+            2: 'rotateX(-90deg) rotateY(0deg)',
+            3: 'rotateY(90deg)',
+            4: 'rotateY(-90deg)',
+            5: 'rotateX(90deg)',
+            6: 'rotateX(180deg)',
+        };
+        diceRef.current.style.transform = transforms[num] || transforms[1];
     };
 
     return (
@@ -65,5 +51,4 @@ function Dice({ number, rolling }) {
     );
 }
 
-// Assign to global scope
-window.Dice = Dice;
+export default Dice;
