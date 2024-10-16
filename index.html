@@ -185,54 +185,43 @@
         const BONUS_TYPE_CHANCE = 0.5;
         const SAFE_ZONE_ROLLS = 3;
         const TIME_FREEZE_DURATION = 5;
-        const INITIAL_TIME = 30; // Changed to 30 seconds
+        const INITIAL_TIME = 30; // Changed from 60 to 30
 
         // Game timer hook
         const useGameTimer = (initialTime) => {
             const [timeLeft, setTimeLeft] = useState(initialTime);
             const [isFrozen, setIsFrozen] = useState(false);
-            const [freezeTimeLeft, setFreezeTimeLeft] = useState(0);
+            const [freezeEndTime, setFreezeEndTime] = useState(null);
             const timerRef = useRef(null);
-            const freezeTimerRef = useRef(null);
 
             useEffect(() => {
                 if (isFrozen) {
                     clearInterval(timerRef.current);
-                    freezeTimerRef.current = setInterval(() => {
-                        setFreezeTimeLeft(prev => {
-                            if (prev > 1) {
-                                return prev - 1;
-                            } else {
-                                clearInterval(freezeTimerRef.current);
-                                setIsFrozen(false);
-                                return 0;
-                            }
-                        });
-                    }, 1000);
                 } else {
-                    clearInterval(freezeTimerRef.current);
                     timerRef.current = setInterval(() => {
                         setTimeLeft(prev => Math.max(prev - 1, 0));
                     }, 1000);
                 }
-                return () => {
-                    clearInterval(timerRef.current);
-                    clearInterval(freezeTimerRef.current);
-                };
+                return () => clearInterval(timerRef.current);
             }, [isFrozen]);
 
             const freezeTimer = useCallback(() => {
                 setIsFrozen(true);
-                setFreezeTimeLeft(TIME_FREEZE_DURATION);
+                const endTime = Date.now() + TIME_FREEZE_DURATION * 1000;
+                setFreezeEndTime(endTime);
+                setTimeout(() => {
+                    setIsFrozen(false);
+                    setFreezeEndTime(null);
+                }, TIME_FREEZE_DURATION * 1000);
             }, []);
 
             const resetTimer = useCallback(() => {
                 setTimeLeft(initialTime);
                 setIsFrozen(false);
-                setFreezeTimeLeft(0);
+                setFreezeEndTime(null);
             }, [initialTime]);
 
-            return { timeLeft, freezeTimer, isFrozen, resetTimer, freezeTimeLeft };
+            return { timeLeft, freezeTimer, isFrozen, resetTimer, freezeEndTime };
         };
 
         // Game reducer
@@ -275,7 +264,7 @@
                         ...state,
                         score: action.newScore,
                         multiplier: action.multiplier,
-                        streak: action.isCorrect ? state.streak + 1 : 0,
+                        streak: action.isCorrect ? state.streak + 1 : state.streak,
                     };
                 case 'ACTIVATE_BONUS':
                     return {
@@ -285,7 +274,13 @@
                         isTimeFreezeActive: action.bonus === 'Time Freeze' ? true : state.isTimeFreezeActive,
                     };
                 case 'DEACTIVATE_BONUS':
-                    return { ...state, activeBonus: null, safeZoneRolls: 0, isTimeFreezeActive: false };
+                    if (action.bonus === 'Safe Zone') {
+                        return { ...state, activeBonus: null, safeZoneRolls: 0 };
+                    } else if (action.bonus === 'Time Freeze') {
+                        return { ...state, activeBonus: null, isTimeFreezeActive: false };
+                    } else {
+                        return { ...state, activeBonus: null, safeZoneRolls: 0, isTimeFreezeActive: false };
+                    }
                 case 'UPDATE_HIGH_SCORE':
                     return { ...state, highScore: action.highScore };
                 case 'SET_ROLLING':
@@ -358,21 +353,21 @@
 
             const touchStartX = useRef(0);
 
-            // Button colors for slides
-            const buttonStyles = [
-                {
-                    color: 'bg-[#D52941]',
-                    hoverColor: 'hover:bg-[#990D35]',
-                },
-                {
-                    color: 'bg-[#D52941]',
-                    hoverColor: 'hover:bg-[#990D35]',
-                },
-                {
-                    color: 'bg-[#FCD581]',
-                    hoverColor: 'hover:bg-[#F9A825]',
-                },
-            ];
+            const getButtonColors = () => {
+                if (currentSlide < slides.length - 1) {
+                    return {
+                        buttonColor: 'bg-[#D52941]',
+                        buttonHoverColor: 'hover:bg-[#990D35]'
+                    };
+                } else {
+                    return {
+                        buttonColor: 'bg-[#FCD581]',
+                        buttonHoverColor: 'hover:bg-[#C9A941]'
+                    };
+                }
+            };
+
+            const { buttonColor, buttonHoverColor } = getButtonColors();
 
             return (
                 <div
@@ -387,14 +382,14 @@
                         {currentSlide === slides.length - 1 ? (
                             <button
                                 onClick={onComplete}
-                                className={`w-full max-w-md py-4 ${buttonStyles[currentSlide].color} text-white rounded-full ${buttonStyles[currentSlide].hoverColor} transition-colors duration-200 font-bold text-2xl`}
+                                className={`w-full max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Start Game
                             </button>
                         ) : (
                             <button
                                 onClick={() => setCurrentSlide(prev => prev + 1)}
-                                className={`w-full max-w-md py-4 ${buttonStyles[currentSlide].color} text-white rounded-full ${buttonStyles[currentSlide].hoverColor} transition-colors duration-200 font-bold text-2xl`}
+                                className={`w-full max-w-md py-4 ${buttonColor} text-white rounded-full ${buttonHoverColor} transition-colors duration-200 font-bold text-2xl`}
                             >
                                 Next
                             </button>
@@ -476,7 +471,7 @@
 
         function DiceProphet() {
             const [state, dispatch] = useReducer(gameReducer, initialState);
-            const { timeLeft, freezeTimer, isFrozen, resetTimer, freezeTimeLeft } = useGameTimer(INITIAL_TIME);
+            const { timeLeft, freezeTimer, isFrozen, resetTimer, freezeEndTime } = useGameTimer(INITIAL_TIME);
             const [showTutorial, setShowTutorial] = useState(true);
 
             // Fetch high score on mount
@@ -520,6 +515,9 @@
             useEffect(() => {
                 if (state.isTimeFreezeActive) {
                     freezeTimer();
+                    setTimeout(() => {
+                        dispatch({ type: 'DEACTIVATE_BONUS', bonus: 'Time Freeze' });
+                    }, TIME_FREEZE_DURATION * 1000);
                 }
             }, [state.isTimeFreezeActive, freezeTimer]);
 
@@ -596,16 +594,18 @@
                     if (isAllIn) {
                         newScore = 0;
                     }
-                    newMultiplier = 1;
                     tg.HapticFeedback.notificationOccurred('error');
                 }
 
                 if (state.activeBonus === 'Safe Zone' && !isAllIn) {
-                    dispatch({ type: 'DECREASE_SAFE_ZONE' });
-                    if (state.safeZoneRolls <= 1) {
-                        dispatch({ type: 'DEACTIVATE_BONUS' });
+                    if (!isCorrect) {
+                        dispatch({ type: 'DECREASE_SAFE_ZONE' });
+                        if (state.safeZoneRolls <= 1) {
+                            dispatch({ type: 'DEACTIVATE_BONUS', bonus: 'Safe Zone' });
+                        }
                     }
                 } else if (!isCorrect && !isAllIn && state.activeBonus !== 'Time Freeze') {
+                    // Do not deactivate Time Freeze bonus prematurely
                     dispatch({ type: 'DEACTIVATE_BONUS' });
                 }
 
@@ -677,75 +677,76 @@
             };
 
             // Render game interface
-            const renderGame = () => (
-                <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
-                    <div className="w-full max-w-md">
-                        <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
-                            <div className="flex flex-col items-center mb-2">
-                                <p className="text-sm opacity-70">Score</p>
-                                <p className="text-5xl font-bold">
-                                    {Math.floor(state.score)}
-                                </p>
+            const renderGame = () => {
+                const timeFreezeRemaining = state.isTimeFreezeActive && freezeEndTime ? Math.ceil((freezeEndTime - Date.now()) / 1000) : 0;
+
+                return (
+                    <div className="flex flex-col items-center justify-between h-screen bg-gradient-game text-black p-4">
+                        <div className="w-full max-w-md">
+                            <div className="bg-white bg-opacity-20 rounded-2xl p-4 mb-4 relative overflow-hidden shadow-custom">
+                                <div className="flex flex-col items-center mb-2">
+                                    <p className="text-sm opacity-70">Score</p>
+                                    <p className="text-5xl font-bold">
+                                        {Math.floor(state.score)}
+                                    </p>
+                                </div>
+                                <div
+                                    className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${
+                                        state.isTimeFreezeActive ? 'frozen' : ''
+                                    } shadow-custom`}
+                                >
+                                    <i className="far fa-clock mr-2"></i>
+                                    <p className="text-2xl font-semibold">
+                                        {state.gameState === 'allIn' ? 'All-In Round' : `${timeLeft}s ${state.isTimeFreezeActive ? '❄️' : ''}`}
+                                    </p>
+                                </div>
                             </div>
-                            <div
-                                className={`flex items-center justify-center bg-white bg-opacity-30 rounded-xl py-2 ${
-                                    state.isTimeFreezeActive ? 'frozen' : ''
-                                } shadow-custom`}
-                            >
-                                {state.gameState === 'allIn' ? (
-                                    <p className="text-2xl font-semibold">All-In Round</p>
-                                ) : (
-                                    <>
-                                        <i className="far fa-clock mr-2"></i>
-                                        <p className="text-2xl font-semibold">
-                                            {timeLeft}s {state.isTimeFreezeActive && '❄️'}
-                                        </p>
-                                    </>
+                            <div className="flex justify-center items-center space-x-2 mb-4">
+                                <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
+                                    <i className="fas fa-bolt mr-1"></i>
+                                    <span className="font-semibold">
+                                        Streak: {state.streak}
+                                    </span>
+                                </div>
+                                {state.activeBonus && (
+                                    <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
+                                        <i className={`fas ${state.activeBonus === 'Safe Zone' ? 'fa-shield-alt' : 'fa-clock'} mr-1`}></i>
+                                        <span className="font-semibold">
+                                            {state.activeBonus === 'Safe Zone' ? `Safe Rolls: ${state.safeZoneRolls}` : `Time Left: ${timeFreezeRemaining}s`}
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                         </div>
-                        <div className="flex justify-center items-center space-x-2 mb-4">
-                            <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
-                                <i className="fas fa-bolt mr-1"></i>
-                                <span className="font-semibold">
-                                    Streak: {state.streak}
-                                </span>
-                            </div>
-                            {state.activeBonus && (
-                                <div className="bg-white bg-opacity-20 rounded-xl py-1 px-3 flex items-center shadow-custom">
-                                    {state.activeBonus === 'Time Freeze' && <i className="fas fa-snowflake mr-1"></i>}
-                                    {state.activeBonus === 'Safe Zone' && <i className="fas fa-shield-alt mr-1"></i>}
-                                    <span className="font-semibold">
-                                        {state.activeBonus}: {state.activeBonus === 'Time Freeze' ? `${freezeTimeLeft}s` : `${state.safeZoneRolls} rolls`}
-                                    </span>
-                                </div>
-                            )}
+
+                        <div className="flex justify-center items-center space-x-8 my-8">
+                            <Dice number={state.dice1} rolling={state.isRolling} />
+                            <Dice number={state.dice2} rolling={state.isRolling} />
+                        </div>
+
+                        <div className="w-full flex flex-col items-center space-y-4 mb-8">
+                            <button
+                                className={`w-full max-w-md py-4 ${
+                                    state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-red-500'
+                                } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
+                                onClick={() => processPrediction('less', state.gameState === 'allIn')}
+                                disabled={state.isRolling || state.buttonsDisabled}
+                            >
+                                <i className="fas fa-arrow-down mr-2"></i> 7
+                            </button>
+                            <button
+                                className={`w-full max-w-md py-4 ${
+                                    state.gameState === 'allIn' ? 'bg-[#FCD581]' : 'bg-green-500'
+                                } text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
+                                onClick={() => processPrediction('more', state.gameState === 'allIn')}
+                                disabled={state.isRolling || state.buttonsDisabled}
+                            >
+                                <i className="fas fa-arrow-up mr-2"></i> 7
+                            </button>
                         </div>
                     </div>
-
-                    <div className="flex justify-center items-center space-x-8 my-8">
-                        <Dice number={state.dice1} rolling={state.isRolling} />
-                        <Dice number={state.dice2} rolling={state.isRolling} />
-                    </div>
-
-                    <div className="w-full flex flex-col items-center space-y-4 mb-8">
-                        <button
-                            className={`w-full max-w-md py-4 bg-red-500 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
-                            onClick={() => processPrediction('less', state.gameState === 'allIn')}
-                            disabled={state.isRolling || state.buttonsDisabled}
-                        >
-                            <i className="fas fa-arrow-down mr-2"></i> 7
-                        </button>
-                        <button
-                            className={`w-full max-w-md py-4 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center transition-colors duration-150 shadow-custom`}
-                            onClick={() => processPrediction('more', state.gameState === 'allIn')}
-                            disabled={state.isRolling || state.buttonsDisabled}
-                        >
-                            <i className="fas fa-arrow-up mr-2"></i> 7
-                        </button>
-                    </div>
-                </div>
-            );
+                );
+            };
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4">
